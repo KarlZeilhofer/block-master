@@ -25,6 +25,9 @@ public:
 signals:
     void eventActivated(const data::CalendarEvent &event);
     void hoveredDateTime(const QDateTime &dateTime);
+    void eventSelected(const data::CalendarEvent &event);
+    void eventResizeRequested(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd);
+    void selectionCleared();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -32,12 +35,17 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
 
 private:
     QRectF eventRect(const data::CalendarEvent &event) const;
     void updateScrollBars();
     void selectEventAt(const QPoint &pos);
     void emitHoverAt(const QPoint &pos);
+    int snapMinutes(double value) const;
+    void beginResize(const data::CalendarEvent &event, bool adjustStart);
+    void updateResize(const QPointF &scenePos);
+    void endResize();
 
     QDate m_startDate;
     int m_dayCount = 5;
@@ -47,6 +55,14 @@ private:
     double m_timeAxisWidth = 70.0;
     std::vector<data::CalendarEvent> m_events;
     QUuid m_selectedEvent;
+    enum class DragMode
+    {
+        None,
+        ResizeStart,
+        ResizeEnd
+    };
+    DragMode m_dragMode = DragMode::None;
+    data::CalendarEvent m_dragEvent;
 };
 
 } // namespace ui

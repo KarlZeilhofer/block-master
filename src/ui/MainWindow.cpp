@@ -19,15 +19,18 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QVariant>
+#include <optional>
 
 #include "calendar/core/AppContext.hpp"
 #include "calendar/data/Event.hpp"
+#include "calendar/data/EventRepository.hpp"
 #include "calendar/data/TodoRepository.hpp"
 #include "calendar/ui/models/TodoFilterProxyModel.hpp"
 #include "calendar/ui/models/TodoListModel.hpp"
 #include "calendar/ui/viewmodels/ScheduleViewModel.hpp"
 #include "calendar/ui/viewmodels/TodoListViewModel.hpp"
 #include "calendar/ui/widgets/CalendarView.hpp"
+#include "calendar/ui/widgets/EventInlineEditor.hpp"
 
 namespace calendar {
 namespace ui {
@@ -206,8 +209,25 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::hoveredDateTime, this, [this](const QDateTime &dt) {
         statusBar()->showMessage(tr("Cursor: %1").arg(dt.toString()), 1000);
     });
+    connect(m_calendarView, &CalendarView::eventSelected, this, &MainWindow::handleEventSelected);
+    connect(m_calendarView, &CalendarView::eventResizeRequested, this, &MainWindow::applyEventResize);
+    connect(m_calendarView, &CalendarView::selectionCleared, this, [this]() {
+        m_selectedEvent = data::CalendarEvent();
+        if (m_eventEditor) {
+            m_eventEditor->clearEditor();
+        }
+    });
 
-    layout->addWidget(m_calendarView);
+    m_eventEditor = new EventInlineEditor(panel);
+    connect(m_eventEditor, &EventInlineEditor::saveRequested, this, &MainWindow::saveEventEdits);
+    connect(m_eventEditor, &EventInlineEditor::cancelRequested, this, [this]() {
+        if (m_calendarView) {
+            m_calendarView->setFocus();
+        }
+    });
+
+    layout->addWidget(m_calendarView, 1);
+    layout->addWidget(m_eventEditor);
     return panel;
 }
 
@@ -336,6 +356,14 @@ void MainWindow::refreshCalendar()
     if (m_calendarView) {
         m_calendarView->setEvents(m_scheduleViewModel->events());
     }
+    if (!m_selectedEvent.id.isNull() && m_eventEditor) {
+        if (auto latest = m_appContext->eventRepository().findById(m_selectedEvent.id)) {
+            m_selectedEvent = *latest;
+            if (m_eventEditor->isVisible()) {
+                m_eventEditor->setEvent(*latest);
+            }
+        }
+    }
 }
 
 void MainWindow::updateCalendarRange()
@@ -371,6 +399,39 @@ void MainWindow::zoomCalendarVertically(bool in)
         return;
     }
     m_calendarView->zoomTime(in ? 1.1 : 0.9);
+}
+
+void MainWindow::handleEventSelected(const data::CalendarEvent &event)
+{
+    m_selectedEvent = event;
+    if (m_eventEditor) {
+        m_eventEditor->setEvent(event);
+    }
+}
+
+void MainWindow::saveEventEdits(const data::CalendarEvent &event)
+{
+    auto updated = event;
+    m_appContext->eventRepository().updateEvent(updated);
+    m_selectedEvent = updated;
+    refreshCalendar();
+    statusBar()->showMessage(tr("Termin gespeichert: %1").arg(updated.title), 1500);
+}
+
+void MainWindow::applyEventResize(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd)
+{
+    auto existing = m_appContext->eventRepository().findById(id);
+    if (!existing) {
+        return;
+    }
+    existing->start = newStart;
+    existing->end = newEnd;
+    m_appContext->eventRepository().updateEvent(*existing);
+    if (!m_selectedEvent.id.isNull() && m_selectedEvent.id == id && m_eventEditor) {
+        m_eventEditor->setEvent(*existing);
+    }
+    refreshCalendar();
+    statusBar()->showMessage(tr("Termin angepasst: %1").arg(existing->title), 1500);
 }
 
 } // namespace ui

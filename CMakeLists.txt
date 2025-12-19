@@ -37,6 +37,8 @@ add_library(calendar_ui STATIC
     include/calendar/ui/widgets/CalendarView.hpp
     src/ui/viewmodels/ScheduleViewModel.cpp
     include/calendar/ui/viewmodels/ScheduleViewModel.hpp
+    src/ui/widgets/EventInlineEditor.cpp
+    include/calendar/ui/widgets/EventInlineEditor.hpp
 )
 target_include_directories(calendar_ui PUBLIC include)
 target_link_libraries(calendar_ui PUBLIC Qt5::Widgets calendar_core calendar_data)

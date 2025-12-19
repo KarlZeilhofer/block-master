@@ -5,6 +5,8 @@
 #include <QModelIndex>
 #include <memory>
 
+#include "calendar/data/Event.hpp"
+
 class QToolBar;
 class QListView;
 class QLineEdit;
@@ -22,6 +24,7 @@ class TodoListViewModel;
 class TodoFilterProxyModel;
 class ScheduleViewModel;
 class CalendarView;
+class EventInlineEditor;
 
 class MainWindow : public QMainWindow
 {
@@ -49,6 +52,9 @@ private:
     void updateCalendarRange();
     void zoomCalendarHorizontally(bool in);
     void zoomCalendarVertically(bool in);
+    void handleEventSelected(const data::CalendarEvent &event);
+    void saveEventEdits(const data::CalendarEvent &event);
+    void applyEventResize(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd);
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;
@@ -57,8 +63,10 @@ private:
     QComboBox *m_todoStatusFilter = nullptr;
     CalendarView *m_calendarView = nullptr;
     QLabel *m_viewInfoLabel = nullptr;
+    EventInlineEditor *m_eventEditor = nullptr;
     QDate m_currentDate;
     int m_visibleDays = 5;
+    data::CalendarEvent m_selectedEvent;
     std::unique_ptr<core::AppContext> m_appContext;
     std::unique_ptr<TodoListViewModel> m_todoViewModel;
     std::unique_ptr<TodoFilterProxyModel> m_todoProxyModel;

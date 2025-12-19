@@ -6,6 +6,7 @@
 #include <QTime>
 #include <QLocale>
 #include <QtMath>
+#include <algorithm>
 
 namespace calendar {
 namespace ui {
@@ -15,6 +16,8 @@ constexpr double MinHourHeight = 20.0;
 constexpr double MaxHourHeight = 160.0;
 constexpr double MinDayWidth = 120.0;
 constexpr double MaxDayWidth = 420.0;
+constexpr double HandleZone = 8.0;
+constexpr int SnapIntervalMinutes = 15;
 } // namespace
 
 CalendarView::CalendarView(QWidget *parent)
@@ -39,6 +42,14 @@ void CalendarView::setDateRange(const QDate &start, int days)
 void CalendarView::setEvents(std::vector<data::CalendarEvent> events)
 {
     m_events = std::move(events);
+    if (!m_selectedEvent.isNull()) {
+        auto it = std::find_if(m_events.begin(), m_events.end(), [this](const data::CalendarEvent &ev) {
+            return ev.id == m_selectedEvent;
+        });
+        if (it == m_events.end()) {
+            m_selectedEvent = {};
+        }
+    }
     viewport()->update();
 }
 
@@ -151,15 +162,63 @@ void CalendarView::wheelEvent(QWheelEvent *event)
 void CalendarView::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
-        selectEventAt(event->pos());
+        const QPointF scenePos = QPointF(event->pos())
+            + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+        for (const auto &ev : m_events) {
+            const QRectF rect = eventRect(ev);
+            if (!rect.contains(scenePos)) {
+                continue;
+            }
+            const double topDist = scenePos.y() - rect.top();
+            const double bottomDist = rect.bottom() - scenePos.y();
+            if (topDist <= HandleZone) {
+                beginResize(ev, true);
+                event->accept();
+                return;
+            }
+            if (bottomDist <= HandleZone) {
+                beginResize(ev, false);
+                event->accept();
+                return;
+            }
+
+            m_selectedEvent = ev.id;
+            viewport()->update();
+            emit eventActivated(ev);
+            emit eventSelected(ev);
+            event->accept();
+            return;
+        }
+        m_selectedEvent = {};
+        viewport()->update();
+        emit selectionCleared();
+        event->accept();
+        return;
     }
     QAbstractScrollArea::mousePressEvent(event);
 }
 
 void CalendarView::mouseMoveEvent(QMouseEvent *event)
 {
+    if (m_dragMode != DragMode::None) {
+        const QPointF scenePos = QPointF(event->pos())
+            + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+        updateResize(scenePos);
+        event->accept();
+        return;
+    }
     emitHoverAt(event->pos());
     QAbstractScrollArea::mouseMoveEvent(event);
+}
+
+void CalendarView::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (m_dragMode != DragMode::None && event->button() == Qt::LeftButton) {
+        endResize();
+        event->accept();
+        return;
+    }
+    QAbstractScrollArea::mouseReleaseEvent(event);
 }
 
 QRectF CalendarView::eventRect(const data::CalendarEvent &event) const
@@ -198,11 +257,13 @@ void CalendarView::selectEventAt(const QPoint &pos)
             m_selectedEvent = eventData.id;
             viewport()->update();
             emit eventActivated(eventData);
+            emit eventSelected(eventData);
             return;
         }
     }
     m_selectedEvent = {};
     viewport()->update();
+    emit selectionCleared();
 }
 
 void CalendarView::emitHoverAt(const QPoint &pos)
@@ -222,6 +283,64 @@ void CalendarView::emitHoverAt(const QPoint &pos)
     }
     QDateTime dt(m_startDate.addDays(dayIndex), QTime(hour, minute));
     emit hoveredDateTime(dt);
+}
+
+int CalendarView::snapMinutes(double value) const
+{
+    const int snapped = static_cast<int>(qRound(value / SnapIntervalMinutes) * SnapIntervalMinutes);
+    return qBound(0, snapped, 24 * 60);
+}
+
+void CalendarView::beginResize(const data::CalendarEvent &event, bool adjustStart)
+{
+    m_dragEvent = event;
+    m_dragMode = adjustStart ? DragMode::ResizeStart : DragMode::ResizeEnd;
+    m_selectedEvent = event.id;
+}
+
+void CalendarView::updateResize(const QPointF &scenePos)
+{
+    if (m_dragMode == DragMode::None) {
+        return;
+    }
+    const double y = scenePos.y() - m_headerHeight;
+    if (y < 0) {
+        return;
+    }
+    const double minutes = (y / m_hourHeight) * 60.0;
+    const int snappedMinutes = snapMinutes(minutes);
+    const QTime time = QTime(0, 0).addSecs(snappedMinutes * 60);
+
+    if (m_dragMode == DragMode::ResizeStart) {
+        const auto minEnd = m_dragEvent.end.addSecs(-SnapIntervalMinutes * 60);
+        QDateTime newStart(m_dragEvent.start.date(), time);
+        if (newStart < minEnd) {
+            m_dragEvent.start = newStart;
+        }
+    } else if (m_dragMode == DragMode::ResizeEnd) {
+        const auto minStart = m_dragEvent.start.addSecs(SnapIntervalMinutes * 60);
+        QDateTime newEnd(m_dragEvent.end.date(), time);
+        if (newEnd > minStart) {
+            m_dragEvent.end = newEnd;
+        }
+    }
+
+    for (auto &eventData : m_events) {
+        if (eventData.id == m_dragEvent.id) {
+            eventData = m_dragEvent;
+            break;
+        }
+    }
+    viewport()->update();
+}
+
+void CalendarView::endResize()
+{
+    if (m_dragMode == DragMode::None) {
+        return;
+    }
+    emit eventResizeRequested(m_dragEvent.id, m_dragEvent.start, m_dragEvent.end);
+    m_dragMode = DragMode::None;
 }
 
 } // namespace ui
