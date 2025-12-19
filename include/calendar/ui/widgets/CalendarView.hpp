@@ -3,6 +3,7 @@
 #include <QAbstractScrollArea>
 #include <QDate>
 #include <QVector>
+#include <optional>
 #include <vector>
 
 #include "calendar/data/Event.hpp"
@@ -28,6 +29,8 @@ signals:
     void eventSelected(const data::CalendarEvent &event);
     void eventResizeRequested(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd);
     void selectionCleared();
+    void todoDropped(const QUuid &todoId, const QDateTime &start);
+    void eventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -36,6 +39,9 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private:
     QRectF eventRect(const data::CalendarEvent &event) const;
@@ -46,6 +52,10 @@ private:
     void beginResize(const data::CalendarEvent &event, bool adjustStart);
     void updateResize(const QPointF &scenePos);
     void endResize();
+    std::optional<QDateTime> dateTimeAtScene(const QPointF &scenePos) const;
+    const data::CalendarEvent *eventAt(const QPointF &scenePos) const;
+    void startEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes);
+    void resetDragCandidate();
 
     QDate m_startDate;
     int m_dayCount = 5;
@@ -63,6 +73,10 @@ private:
     };
     DragMode m_dragMode = DragMode::None;
     data::CalendarEvent m_dragEvent;
+    QUuid m_dragCandidateId;
+    QPoint m_pressPos;
+    bool m_draggingEvent = false;
+    int m_dragPointerOffsetMinutes = 0;
 };
 
 } // namespace ui

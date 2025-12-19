@@ -31,6 +31,7 @@
 #include "calendar/ui/viewmodels/TodoListViewModel.hpp"
 #include "calendar/ui/widgets/CalendarView.hpp"
 #include "calendar/ui/widgets/EventInlineEditor.hpp"
+#include "calendar/ui/dialogs/EventDetailDialog.hpp"
 
 namespace calendar {
 namespace ui {
@@ -211,12 +212,9 @@ QWidget *MainWindow::createCalendarView()
     });
     connect(m_calendarView, &CalendarView::eventSelected, this, &MainWindow::handleEventSelected);
     connect(m_calendarView, &CalendarView::eventResizeRequested, this, &MainWindow::applyEventResize);
-    connect(m_calendarView, &CalendarView::selectionCleared, this, [this]() {
-        m_selectedEvent = data::CalendarEvent();
-        if (m_eventEditor) {
-            m_eventEditor->clearEditor();
-        }
-    });
+    connect(m_calendarView, &CalendarView::selectionCleared, this, &MainWindow::clearSelection);
+    connect(m_calendarView, &CalendarView::todoDropped, this, &MainWindow::handleTodoDropped);
+    connect(m_calendarView, &CalendarView::eventDropRequested, this, &MainWindow::handleEventDropRequested);
 
     m_eventEditor = new EventInlineEditor(panel);
     connect(m_eventEditor, &EventInlineEditor::saveRequested, this, &MainWindow::saveEventEdits);
@@ -240,12 +238,43 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
     auto *newEventAction = toolbar->addAction(tr("Neuer Termin"));
     newEventAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
     connect(newEventAction, &QAction::triggered, this, [this]() {
-        statusBar()->showMessage(tr("Termin-Erstellung folgt später"), 2000);
+        data::CalendarEvent event;
+        event.start = QDateTime(m_currentDate, QTime(9, 0));
+        event.end = event.start.addSecs(60 * 60);
+        if (!m_eventDetailDialog) {
+            m_eventDetailDialog = std::make_unique<EventDetailDialog>(this);
+        }
+        m_eventDetailDialog->setEvent(event);
+        if (m_eventDetailDialog->exec() == QDialog::Accepted) {
+            auto created = m_eventDetailDialog->event();
+            m_appContext->eventRepository().addEvent(created);
+            refreshCalendar();
+            statusBar()->showMessage(tr("Termin erstellt"), 1500);
+        }
     });
 
     auto *refreshAction = toolbar->addAction(tr("Aktualisieren"));
     refreshAction->setShortcut(QKeySequence::Refresh);
     connect(refreshAction, &QAction::triggered, this, &MainWindow::refreshTodos);
+
+    m_editEventAction = toolbar->addAction(tr("Erweitert bearbeiten…"));
+    m_editEventAction->setEnabled(false);
+    connect(m_editEventAction, &QAction::triggered, this, [this]() {
+        if (m_selectedEvent.id.isNull()) {
+            return;
+        }
+        if (!m_eventDetailDialog) {
+            m_eventDetailDialog = std::make_unique<EventDetailDialog>(this);
+        }
+        m_eventDetailDialog->setEvent(m_selectedEvent);
+        if (m_eventDetailDialog->exec() == QDialog::Accepted) {
+            auto updated = m_eventDetailDialog->event();
+            m_appContext->eventRepository().updateEvent(updated);
+            m_selectedEvent = updated;
+            refreshCalendar();
+            statusBar()->showMessage(tr("Termin aktualisiert"), 1500);
+        }
+    });
 }
 
 void MainWindow::goToday()
@@ -356,12 +385,14 @@ void MainWindow::refreshCalendar()
     if (m_calendarView) {
         m_calendarView->setEvents(m_scheduleViewModel->events());
     }
-    if (!m_selectedEvent.id.isNull() && m_eventEditor) {
+    if (!m_selectedEvent.id.isNull()) {
         if (auto latest = m_appContext->eventRepository().findById(m_selectedEvent.id)) {
             m_selectedEvent = *latest;
-            if (m_eventEditor->isVisible()) {
+            if (m_eventEditor && m_eventEditor->isVisible()) {
                 m_eventEditor->setEvent(*latest);
             }
+        } else {
+            clearSelection();
         }
     }
 }
@@ -404,6 +435,9 @@ void MainWindow::zoomCalendarVertically(bool in)
 void MainWindow::handleEventSelected(const data::CalendarEvent &event)
 {
     m_selectedEvent = event;
+    if (m_editEventAction) {
+        m_editEventAction->setEnabled(true);
+    }
     if (m_eventEditor) {
         m_eventEditor->setEvent(event);
     }
@@ -432,6 +466,61 @@ void MainWindow::applyEventResize(const QUuid &id, const QDateTime &newStart, co
     }
     refreshCalendar();
     statusBar()->showMessage(tr("Termin angepasst: %1").arg(existing->title), 1500);
+}
+
+void MainWindow::clearSelection()
+{
+    m_selectedEvent = data::CalendarEvent();
+    if (m_editEventAction) {
+        m_editEventAction->setEnabled(false);
+    }
+    if (m_eventEditor) {
+        m_eventEditor->clearEditor();
+    }
+}
+
+void MainWindow::handleTodoDropped(const QUuid &todoId, const QDateTime &start)
+{
+    auto todoOpt = m_appContext->todoRepository().findById(todoId);
+    if (!todoOpt.has_value()) {
+        statusBar()->showMessage(tr("TODO nicht gefunden"), 2000);
+        return;
+    }
+
+    data::CalendarEvent event;
+    event.title = todoOpt->title;
+    event.description = todoOpt->description;
+    event.start = start;
+    event.end = start.addSecs(60 * 60);
+    event.location = tr("Geplant aus TODO");
+    m_appContext->eventRepository().addEvent(event);
+    m_appContext->todoRepository().removeTodo(todoId);
+
+    refreshTodos();
+    refreshCalendar();
+    statusBar()->showMessage(tr("TODO \"%1\" eingeplant").arg(todoOpt->title), 2000);
+}
+
+void MainWindow::handleEventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy)
+{
+    auto eventOpt = m_appContext->eventRepository().findById(eventId);
+    if (!eventOpt.has_value()) {
+        return;
+    }
+    auto eventData = eventOpt.value();
+    const qint64 duration = qMax<qint64>(30 * 60, eventData.start.secsTo(eventData.end));
+    eventData.start = start;
+    eventData.end = start.addSecs(duration);
+
+    if (copy) {
+        eventData.id = QUuid::createUuid();
+        m_appContext->eventRepository().addEvent(eventData);
+        statusBar()->showMessage(tr("Termin kopiert"), 1500);
+    } else {
+        m_appContext->eventRepository().updateEvent(eventData);
+        statusBar()->showMessage(tr("Termin verschoben"), 1500);
+    }
+    refreshCalendar();
 }
 
 } // namespace ui

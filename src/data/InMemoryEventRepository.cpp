@@ -34,6 +34,9 @@ CalendarEvent InMemoryEventRepository::addEvent(CalendarEvent event)
     if (!event.end.isValid() || event.end <= event.start) {
         event.end = event.start.addSecs(30 * 60);
     }
+    if (event.reminderMinutes < 0) {
+        event.reminderMinutes = 0;
+    }
     m_events.insert(event.id, event);
     return event;
 }

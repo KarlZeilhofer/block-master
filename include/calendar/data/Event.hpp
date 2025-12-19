@@ -18,6 +18,8 @@ struct CalendarEvent
     bool allDay = false;
     QString location;
     QStringList categories;
+    QString recurrenceRule; // RFC5545 RRULE string placeholder
+    int reminderMinutes = 0;
 };
 
 } // namespace data

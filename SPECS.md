@@ -46,7 +46,7 @@ Hauptaufgaben:
 - **Wochen-/Arbeitswochenansicht**: 7 bzw. 5 Spalten, horizontaler Zoom ändert Anzahl sichtbarer Tage (3–14).
 - **Monatsansicht**: Raster, horizontales Zoomen blendet zusätzliche Wochen (z. B. 2 vs. 6).
 - **Agenda/Listenansicht**: chronologische Tabelle mit Fokus auf Tastaturbedienung.
-- Zoominteraktion: Mausrad + Modifier, Touchpad-Pinch, dedizierte Tastenkürzel (`Ctrl++`, `Ctrl+-`, `Ctrl+Shift++` für vertikal).
+- Zoominteraktion: Mausrad + Modifier, Touchpad-Pinch, dedizierte Tastenkürzel (`Ctrl++`, `Ctrl+-`, `Ctrl+Shift++` für vertikal). Standard-Scroll ohne Modifier bewegt die Ansicht vertikal in 15-Minuten-Schritten und horizontal um ein Viertel Tag, damit auch ohne Zoom präzise navigiert werden kann.
 - Anzeige aktualisiert sich smooth (Scroll-Physik, Lazy Rendering bei >500 Events).
 
 ## 6. Editing-Flows
