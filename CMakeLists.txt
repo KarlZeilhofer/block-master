@@ -33,6 +33,10 @@ add_library(calendar_ui STATIC
     include/calendar/ui/models/TodoFilterProxyModel.hpp
     src/ui/viewmodels/TodoListViewModel.cpp
     include/calendar/ui/viewmodels/TodoListViewModel.hpp
+    src/ui/widgets/CalendarView.cpp
+    include/calendar/ui/widgets/CalendarView.hpp
+    src/ui/viewmodels/ScheduleViewModel.cpp
+    include/calendar/ui/viewmodels/ScheduleViewModel.hpp
 )
 target_include_directories(calendar_ui PUBLIC include)
 target_link_libraries(calendar_ui PUBLIC Qt5::Widgets calendar_core calendar_data)
@@ -65,3 +69,9 @@ add_executable(calendar_test_todo_list_model
 )
 target_link_libraries(calendar_test_todo_list_model PRIVATE Qt5::Test calendar_data calendar_ui)
 add_test(NAME TodoListModelTest COMMAND calendar_test_todo_list_model)
+
+add_executable(calendar_test_schedule_viewmodel
+    tests/ui/ScheduleViewModelTest.cpp
+)
+target_link_libraries(calendar_test_schedule_viewmodel PRIVATE Qt5::Test calendar_data calendar_ui)
+add_test(NAME ScheduleViewModelTest COMMAND calendar_test_schedule_viewmodel)

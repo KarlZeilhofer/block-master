@@ -21,10 +21,13 @@
 #include <QVariant>
 
 #include "calendar/core/AppContext.hpp"
+#include "calendar/data/Event.hpp"
 #include "calendar/data/TodoRepository.hpp"
 #include "calendar/ui/models/TodoFilterProxyModel.hpp"
 #include "calendar/ui/models/TodoListModel.hpp"
+#include "calendar/ui/viewmodels/ScheduleViewModel.hpp"
 #include "calendar/ui/viewmodels/TodoListViewModel.hpp"
+#include "calendar/ui/widgets/CalendarView.hpp"
 
 namespace calendar {
 namespace ui {
@@ -34,9 +37,12 @@ MainWindow::MainWindow(QWidget *parent)
     , m_appContext(std::make_unique<core::AppContext>())
     , m_todoViewModel(std::make_unique<TodoListViewModel>(m_appContext->todoRepository()))
     , m_todoProxyModel(std::make_unique<TodoFilterProxyModel>())
+    , m_scheduleViewModel(std::make_unique<ScheduleViewModel>(m_appContext->eventRepository()))
 {
+    m_currentDate = QDate::currentDate();
     setupUi();
     refreshTodos();
+    refreshCalendar();
 }
 
 MainWindow::~MainWindow() = default;
@@ -46,12 +52,12 @@ void MainWindow::setupUi()
     setWindowTitle(tr("Calendar App (Prototype)"));
     resize(1200, 800);
 
-    auto *toolbarWidget = createNavigationBar();
-    addToolBar(Qt::TopToolBarArea, qobject_cast<QToolBar *>(toolbarWidget));
+    auto *toolbar = createNavigationBar();
+    addToolBar(Qt::TopToolBarArea, toolbar);
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);
     m_todoPanel = createTodoPanel();
-    m_calendarPanel = createCalendarPlaceholder();
+    m_calendarPanel = createCalendarView();
 
     splitter->addWidget(m_todoPanel);
     splitter->addWidget(m_calendarPanel);
@@ -67,10 +73,21 @@ void MainWindow::setupUi()
     layout->addWidget(splitter);
 
     setCentralWidget(centralWidget);
+    if (m_scheduleViewModel && m_calendarView) {
+        connect(m_scheduleViewModel.get(),
+                &ScheduleViewModel::eventsChanged,
+                this,
+                [this](const std::vector<data::CalendarEvent> &events) {
+                    if (m_calendarView) {
+                        m_calendarView->setEvents(events);
+                    }
+                });
+    }
+    updateCalendarRange();
     statusBar()->showMessage(tr("Bereit"));
 }
 
-QWidget *MainWindow::createNavigationBar()
+QToolBar *MainWindow::createNavigationBar()
 {
     auto *toolbar = new QToolBar(tr("Navigation"), this);
     toolbar->setMovable(false);
@@ -89,8 +106,25 @@ QWidget *MainWindow::createNavigationBar()
 
     toolbar->addSeparator();
 
-    auto *viewLabel = new QLabel(tr("Ansicht: Tag (Stub)"), toolbar);
-    toolbar->addWidget(viewLabel);
+    m_viewInfoLabel = new QLabel(toolbar);
+    toolbar->addWidget(m_viewInfoLabel);
+    updateCalendarRange();
+
+    auto *zoomDayIn = toolbar->addAction(tr("Tag-Zoom +"));
+    zoomDayIn->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Plus));
+    connect(zoomDayIn, &QAction::triggered, this, [this]() { zoomCalendarHorizontally(true); });
+
+    auto *zoomDayOut = toolbar->addAction(tr("Tag-Zoom -"));
+    zoomDayOut->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Minus));
+    connect(zoomDayOut, &QAction::triggered, this, [this]() { zoomCalendarHorizontally(false); });
+
+    auto *zoomTimeIn = toolbar->addAction(tr("Zeit-Zoom +"));
+    zoomTimeIn->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Plus));
+    connect(zoomTimeIn, &QAction::triggered, this, [this]() { zoomCalendarVertically(true); });
+
+    auto *zoomTimeOut = toolbar->addAction(tr("Zeit-Zoom -"));
+    zoomTimeOut->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Minus));
+    connect(zoomTimeOut, &QAction::triggered, this, [this]() { zoomCalendarVertically(false); });
 
     setupShortcuts(toolbar);
     return toolbar;
@@ -158,21 +192,22 @@ QWidget *MainWindow::createTodoPanel()
     return panel;
 }
 
-QWidget *MainWindow::createCalendarPlaceholder()
+QWidget *MainWindow::createCalendarView()
 {
     auto *panel = new QWidget(this);
     auto *layout = new QVBoxLayout(panel);
-    layout->setContentsMargins(8, 8, 8, 8);
-    layout->setSpacing(4);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
 
-    auto *header = new QLabel(tr("Kalenderansicht (Stub)"), panel);
-    auto *calendarPreview = new QLabel(tr("Hier folgen Timeline/Zoom-Widgets in späteren Schritten"), panel);
-    calendarPreview->setAlignment(Qt::AlignCenter);
-    calendarPreview->setFrameShape(QFrame::StyledPanel);
-    calendarPreview->setMinimumHeight(600);
+    m_calendarView = new CalendarView(panel);
+    connect(m_calendarView, &CalendarView::eventActivated, this, [this](const data::CalendarEvent &event) {
+        statusBar()->showMessage(tr("Termin: %1, %2").arg(event.title, event.start.toString()), 2500);
+    });
+    connect(m_calendarView, &CalendarView::hoveredDateTime, this, [this](const QDateTime &dt) {
+        statusBar()->showMessage(tr("Cursor: %1").arg(dt.toString()), 1000);
+    });
 
-    layout->addWidget(header);
-    layout->addWidget(calendarPreview, 1);
+    layout->addWidget(m_calendarView);
     return panel;
 }
 
@@ -195,17 +230,26 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
 
 void MainWindow::goToday()
 {
-    statusBar()->showMessage(tr("Heute ausgewählt: %1").arg(QDate::currentDate().toString(Qt::ISODate)), 2000);
+    m_currentDate = QDate::currentDate();
+    updateCalendarRange();
+    refreshCalendar();
+    statusBar()->showMessage(tr("Heute ausgewählt: %1").arg(m_currentDate.toString(Qt::ISODate)), 2000);
 }
 
 void MainWindow::navigateForward()
 {
-    statusBar()->showMessage(tr("Weiter (Stub)"), 1500);
+    m_currentDate = m_currentDate.addDays(m_visibleDays);
+    updateCalendarRange();
+    refreshCalendar();
+    statusBar()->showMessage(tr("Weiter: %1").arg(m_currentDate.toString(Qt::ISODate)), 1500);
 }
 
 void MainWindow::navigateBackward()
 {
-    statusBar()->showMessage(tr("Zurück (Stub)"), 1500);
+    m_currentDate = m_currentDate.addDays(-m_visibleDays);
+    updateCalendarRange();
+    refreshCalendar();
+    statusBar()->showMessage(tr("Zurück: %1").arg(m_currentDate.toString(Qt::ISODate)), 1500);
 }
 
 void MainWindow::refreshTodos()
@@ -281,6 +325,52 @@ void MainWindow::updateStatusFilter(int index)
         return;
     }
     m_todoProxyModel->setStatusFilter(static_cast<data::TodoStatus>(data.toInt()));
+}
+
+void MainWindow::refreshCalendar()
+{
+    if (!m_scheduleViewModel) {
+        return;
+    }
+    m_scheduleViewModel->refresh();
+    if (m_calendarView) {
+        m_calendarView->setEvents(m_scheduleViewModel->events());
+    }
+}
+
+void MainWindow::updateCalendarRange()
+{
+    if (!m_scheduleViewModel || !m_calendarView) {
+        return;
+    }
+    const QDate end = m_currentDate.addDays(m_visibleDays - 1);
+    m_scheduleViewModel->setRange(m_currentDate, end);
+    m_calendarView->setDateRange(m_currentDate, m_visibleDays);
+    if (m_viewInfoLabel) {
+        m_viewInfoLabel->setText(tr("%1 - %2 (%3 Tage)")
+                                     .arg(m_currentDate.toString(Qt::ISODate),
+                                          end.toString(Qt::ISODate))
+                                     .arg(m_visibleDays));
+    }
+}
+
+void MainWindow::zoomCalendarHorizontally(bool in)
+{
+    if (in) {
+        m_visibleDays = qMax(1, m_visibleDays - 1);
+    } else {
+        m_visibleDays = qMin(14, m_visibleDays + 1);
+    }
+    updateCalendarRange();
+    refreshCalendar();
+}
+
+void MainWindow::zoomCalendarVertically(bool in)
+{
+    if (!m_calendarView) {
+        return;
+    }
+    m_calendarView->zoomTime(in ? 1.1 : 0.9);
 }
 
 } // namespace ui

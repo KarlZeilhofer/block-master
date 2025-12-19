@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDate>
 #include <QMainWindow>
 #include <QModelIndex>
 #include <memory>
@@ -8,6 +9,7 @@ class QToolBar;
 class QListView;
 class QLineEdit;
 class QComboBox;
+class QLabel;
 
 namespace calendar {
 namespace core {
@@ -18,6 +20,8 @@ namespace ui {
 
 class TodoListViewModel;
 class TodoFilterProxyModel;
+class ScheduleViewModel;
+class CalendarView;
 
 class MainWindow : public QMainWindow
 {
@@ -29,9 +33,9 @@ public:
 
 private:
     void setupUi();
-    QWidget *createNavigationBar();
+    QToolBar *createNavigationBar();
     QWidget *createTodoPanel();
-    QWidget *createCalendarPlaceholder();
+    QWidget *createCalendarView();
     void setupShortcuts(QToolBar *toolbar);
     void goToday();
     void navigateForward();
@@ -41,15 +45,24 @@ private:
     void deleteSelectedTodos();
     void handleTodoActivated(const QModelIndex &index);
     void updateStatusFilter(int index);
+    void refreshCalendar();
+    void updateCalendarRange();
+    void zoomCalendarHorizontally(bool in);
+    void zoomCalendarVertically(bool in);
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;
     QListView *m_todoListView = nullptr;
     QLineEdit *m_todoSearchField = nullptr;
     QComboBox *m_todoStatusFilter = nullptr;
+    CalendarView *m_calendarView = nullptr;
+    QLabel *m_viewInfoLabel = nullptr;
+    QDate m_currentDate;
+    int m_visibleDays = 5;
     std::unique_ptr<core::AppContext> m_appContext;
     std::unique_ptr<TodoListViewModel> m_todoViewModel;
     std::unique_ptr<TodoFilterProxyModel> m_todoProxyModel;
+    std::unique_ptr<ScheduleViewModel> m_scheduleViewModel;
 };
 
 } // namespace ui
