@@ -65,6 +65,7 @@ Hauptaufgaben:
 - Zwischen Kalenderansichten Drag & Drop unterstützen (z. B. Tag → Woche).
 - Drag-Klonen via `Ctrl`: kopiert Termin.
 - Snap-Regeln: Raster 5 Minuten, Halten von `Alt` erlaubt freie Positionierung.
+- Während des Draggens zeigt ein halbtransparentes Ghost-Objekt die erwartete Zielposition (am gleichen Raster), damit Nutzer das Ergebnis sehen, bevor sie loslassen.
 
 ## 7. Tastaturbedienung
 - Navigation:

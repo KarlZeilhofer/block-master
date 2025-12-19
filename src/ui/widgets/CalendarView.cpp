@@ -5,6 +5,7 @@
 #include <QDrag>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
+#include <QDragLeaveEvent>
 #include <QDropEvent>
 #include <QMimeData>
 #include <QMouseEvent>
@@ -147,6 +148,16 @@ void CalendarView::paintEvent(QPaintEvent *event)
                                   eventData.start.time().toString(QStringLiteral("hh:mm")),
                                   eventData.end.time().toString(QStringLiteral("hh:mm"))));
     }
+
+    if (m_showDropPreview && m_dropPreviewRect.isValid()) {
+        painter.setBrush(QColor(100, 149, 237, 120));
+        painter.setPen(QPen(palette().highlight().color(), 1, Qt::DashLine));
+        painter.drawRoundedRect(m_dropPreviewRect, 4, 4);
+        painter.setPen(Qt::white);
+        painter.drawText(m_dropPreviewRect.adjusted(4, 2, -4, -2),
+                         Qt::AlignLeft | Qt::AlignTop,
+                         m_dropPreviewText);
+    }
 }
 
 void CalendarView::resizeEvent(QResizeEvent *event)
@@ -220,9 +231,10 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
             m_dragCandidateId = ev.id;
             const double pointerMinutes = ((scenePos.y() - m_headerHeight) / m_hourHeight) * 60.0;
             const double eventStartMinutes = ev.start.time().hour() * 60 + ev.start.time().minute();
-            m_dragPointerOffsetMinutes = static_cast<int>(pointerMinutes - eventStartMinutes);
+            int rawOffset = static_cast<int>(pointerMinutes - eventStartMinutes);
+            rawOffset = snapIntervalMinutes(rawOffset);
             const int durationMinutes = ev.start.secsTo(ev.end) / 60;
-            m_dragPointerOffsetMinutes = qBound(0, m_dragPointerOffsetMinutes, durationMinutes);
+            m_dragPointerOffsetMinutes = qBound(0, rawOffset, durationMinutes);
 
             m_selectedEvent = ev.id;
             viewport()->update();
@@ -290,7 +302,58 @@ void CalendarView::dragEnterEvent(QDragEnterEvent *event)
 void CalendarView::dragMoveEvent(QDragMoveEvent *event)
 {
     const auto *mime = event->mimeData();
-    if (mime->hasFormat(TodoMimeType) || mime->hasFormat(EventMimeType)) {
+    const QPointF scenePos = QPointF(event->pos())
+        + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+
+    if (mime->hasFormat(TodoMimeType)) {
+        QByteArray payload = mime->data(TodoMimeType);
+        QDataStream stream(&payload, QIODevice::ReadOnly);
+        QUuid todoId;
+        QString title;
+        stream >> todoId >> title;
+        auto dateTimeOpt = dateTimeAtScene(scenePos);
+        if (!dateTimeOpt) {
+            clearDropPreview();
+            event->ignore();
+            return;
+        }
+        QDateTime dateTime = dateTimeOpt.value();
+        int minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
+        dateTime.setTime(QTime(minutes / 60, minutes % 60));
+        const QString label = title.isEmpty() ? tr("Neuer Termin") : title;
+        updateDropPreview(dateTime, 60, label);
+        event->acceptProposedAction();
+        return;
+    }
+
+    if (mime->hasFormat(EventMimeType)) {
+        QByteArray payload = mime->data(EventMimeType);
+        QDataStream stream(&payload, QIODevice::ReadOnly);
+        QUuid eventId;
+        int offsetMinutes = 0;
+        stream >> eventId >> offsetMinutes;
+        auto dateTimeOpt = dateTimeAtScene(scenePos);
+        if (!dateTimeOpt) {
+            clearDropPreview();
+            event->ignore();
+            return;
+        }
+        QDateTime dateTime = dateTimeOpt.value();
+        int minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
+        dateTime.setTime(QTime(minutes / 60, minutes % 60));
+        dateTime = dateTime.addSecs(-offsetMinutes * 60);
+        minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
+        dateTime.setTime(QTime(minutes / 60, minutes % 60));
+        auto it = std::find_if(m_events.begin(), m_events.end(), [eventId](const data::CalendarEvent &ev) {
+            return ev.id == eventId;
+        });
+        if (it == m_events.end()) {
+            clearDropPreview();
+            event->ignore();
+            return;
+        }
+        const int durationMinutes = qMax<int>(30, it->start.secsTo(it->end) / 60);
+        updateDropPreview(dateTime, durationMinutes, it->title);
         event->acceptProposedAction();
         return;
     }
@@ -302,6 +365,7 @@ void CalendarView::dropEvent(QDropEvent *event)
     const auto *mime = event->mimeData();
     const QPointF scenePos = QPointF(event->pos())
         + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+    clearDropPreview();
 
     if (mime->hasFormat(TodoMimeType)) {
         QByteArray payload = mime->data(TodoMimeType);
@@ -330,6 +394,7 @@ void CalendarView::dropEvent(QDropEvent *event)
         QUuid eventId;
         int offsetMinutes = 0;
         stream >> eventId >> offsetMinutes;
+        offsetMinutes = snapIntervalMinutes(offsetMinutes);
         auto dateTimeOpt = dateTimeAtScene(scenePos);
         if (!dateTimeOpt.has_value()) {
             event->ignore();
@@ -340,6 +405,8 @@ void CalendarView::dropEvent(QDropEvent *event)
         minutes = snapMinutes(minutes);
         dateTime.setTime(QTime(minutes / 60, minutes % 60));
         dateTime = dateTime.addSecs(-offsetMinutes * 60);
+        minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
+        dateTime.setTime(QTime(minutes / 60, minutes % 60));
         bool copy = event->keyboardModifiers().testFlag(Qt::ControlModifier);
         emit eventDropRequested(eventId, dateTime, copy);
         event->setDropAction(copy ? Qt::CopyAction : Qt::MoveAction);
@@ -348,6 +415,12 @@ void CalendarView::dropEvent(QDropEvent *event)
     }
 
     event->ignore();
+}
+
+void CalendarView::dragLeaveEvent(QDragLeaveEvent *event)
+{
+    Q_UNUSED(event);
+    clearDropPreview();
 }
 
 QRectF CalendarView::eventRect(const data::CalendarEvent &event) const
@@ -418,6 +491,14 @@ int CalendarView::snapMinutes(double value) const
 {
     const int snapped = static_cast<int>(qRound(value / SnapIntervalMinutes) * SnapIntervalMinutes);
     return qBound(0, snapped, 24 * 60);
+}
+
+int CalendarView::snapIntervalMinutes(int value) const
+{
+    if (SnapIntervalMinutes <= 0) {
+        return value;
+    }
+    return static_cast<int>(qRound(static_cast<double>(value) / SnapIntervalMinutes) * SnapIntervalMinutes);
 }
 
 void CalendarView::beginResize(const data::CalendarEvent &event, bool adjustStart)
@@ -506,7 +587,8 @@ void CalendarView::startEventDrag(const data::CalendarEvent &event, int pointerO
     auto *mime = new QMimeData();
     QByteArray payload;
     QDataStream stream(&payload, QIODevice::WriteOnly);
-    stream << event.id << pointerOffsetMinutes;
+    const int offset = snapIntervalMinutes(pointerOffsetMinutes);
+    stream << event.id << offset;
     mime->setData(EventMimeType, payload);
     drag->setMimeData(mime);
     drag->exec(Qt::CopyAction | Qt::MoveAction);
@@ -517,6 +599,42 @@ void CalendarView::resetDragCandidate()
 {
     m_dragCandidateId = QUuid();
     m_dragPointerOffsetMinutes = 0;
+}
+
+void CalendarView::updateDropPreview(const QDateTime &start, int durationMinutes, const QString &label)
+{
+    if (!start.isValid() || durationMinutes <= 0) {
+        clearDropPreview();
+        return;
+    }
+
+    data::CalendarEvent preview;
+    preview.start = start;
+    preview.end = start.addSecs(durationMinutes * 60);
+
+    const QRectF rect = eventRect(preview);
+    if (rect.isEmpty()) {
+        clearDropPreview();
+        return;
+    }
+
+    m_dropPreviewRect = rect;
+    m_dropPreviewText = label;
+    if (!m_showDropPreview) {
+        m_showDropPreview = true;
+    }
+    viewport()->update();
+}
+
+void CalendarView::clearDropPreview()
+{
+    if (!m_showDropPreview) {
+        return;
+    }
+    m_showDropPreview = false;
+    m_dropPreviewRect = QRectF();
+    m_dropPreviewText.clear();
+    viewport()->update();
 }
 
 } // namespace ui

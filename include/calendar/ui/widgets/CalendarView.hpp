@@ -42,6 +42,7 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void dragLeaveEvent(QDragLeaveEvent *event) override;
 
 private:
     QRectF eventRect(const data::CalendarEvent &event) const;
@@ -49,6 +50,7 @@ private:
     void selectEventAt(const QPoint &pos);
     void emitHoverAt(const QPoint &pos);
     int snapMinutes(double value) const;
+    int snapIntervalMinutes(int value) const;
     void beginResize(const data::CalendarEvent &event, bool adjustStart);
     void updateResize(const QPointF &scenePos);
     void endResize();
@@ -56,6 +58,8 @@ private:
     const data::CalendarEvent *eventAt(const QPointF &scenePos) const;
     void startEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes);
     void resetDragCandidate();
+    void updateDropPreview(const QDateTime &start, int durationMinutes, const QString &label);
+    void clearDropPreview();
 
     QDate m_startDate;
     int m_dayCount = 5;
@@ -77,6 +81,9 @@ private:
     QPoint m_pressPos;
     bool m_draggingEvent = false;
     int m_dragPointerOffsetMinutes = 0;
+    bool m_showDropPreview = false;
+    QRectF m_dropPreviewRect;
+    QString m_dropPreviewText;
 };
 
 } // namespace ui
