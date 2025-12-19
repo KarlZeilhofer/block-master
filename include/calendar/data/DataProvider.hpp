@@ -1,15 +1,12 @@
 #pragma once
 
-#include <QString>
-#include <vector>
+#include <memory>
 
 namespace calendar {
 namespace data {
 
-struct TodoItem
-{
-    QString title;
-};
+class TodoRepository;
+class EventRepository;
 
 class DataProvider
 {
@@ -17,7 +14,12 @@ public:
     DataProvider();
     ~DataProvider();
 
-    std::vector<TodoItem> fetchTodos() const;
+    TodoRepository &todoRepository();
+    EventRepository &eventRepository();
+
+private:
+    std::unique_ptr<TodoRepository> m_todoRepository;
+    std::unique_ptr<EventRepository> m_eventRepository;
 };
 
 } // namespace data

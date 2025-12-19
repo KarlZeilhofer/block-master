@@ -7,16 +7,19 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt5 5.15 REQUIRED COMPONENTS Widgets)
+find_package(Qt5 5.15 REQUIRED COMPONENTS Widgets Test)
 
 add_library(calendar_data STATIC
     src/data/DataProvider.cpp
+    src/data/InMemoryTodoRepository.cpp
+    src/data/InMemoryEventRepository.cpp
 )
 target_include_directories(calendar_data PUBLIC include)
 target_link_libraries(calendar_data PUBLIC Qt5::Core)
 
 add_library(calendar_core STATIC
     src/core/AppContext.cpp
+    src/core/UndoStack.cpp
 )
 target_include_directories(calendar_core PUBLIC include)
 target_link_libraries(calendar_core PUBLIC Qt5::Core calendar_data)
@@ -36,3 +39,17 @@ target_link_libraries(calendar_app PRIVATE calendar_ui calendar_core calendar_da
 install(TARGETS calendar_app
     RUNTIME DESTINATION bin
 )
+
+enable_testing()
+
+add_executable(calendar_test_undo_stack
+    tests/core/UndoStackTest.cpp
+)
+target_link_libraries(calendar_test_undo_stack PRIVATE Qt5::Test calendar_core)
+add_test(NAME UndoStackTest COMMAND calendar_test_undo_stack)
+
+add_executable(calendar_test_todo_repository
+    tests/data/TodoRepositoryTest.cpp
+)
+target_link_libraries(calendar_test_todo_repository PRIVATE Qt5::Test calendar_data)
+add_test(NAME TodoRepositoryTest COMMAND calendar_test_todo_repository)

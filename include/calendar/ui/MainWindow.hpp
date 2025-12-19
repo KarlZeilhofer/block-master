@@ -20,6 +20,16 @@ public:
 
 private:
     void setupUi();
+    QWidget *createNavigationBar();
+    QWidget *createTodoPanel();
+    QWidget *createCalendarPlaceholder();
+    void setupShortcuts(QToolBar *toolbar);
+    void goToday();
+    void navigateForward();
+    void navigateBackward();
+
+    QWidget *m_todoPanel = nullptr;
+    QWidget *m_calendarPanel = nullptr;
     std::unique_ptr<core::AppContext> m_appContext;
 };
 
