@@ -1,0 +1,21 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qtbase5-dev qtbase5-dev-tools
+      - name: Configure
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: |
+          cmake --build build --config Release --parallel

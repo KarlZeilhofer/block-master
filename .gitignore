@@ -1,0 +1,23 @@
+# Build artifacts
+/build/
+
+# Qt Creator / CMake caches
+CMakeLists.txt.user*
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+
+# IDE/state files
+*.pro.user
+*.autosave
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
