@@ -20,6 +20,7 @@ public:
 private:
     std::unique_ptr<TodoRepository> m_todoRepository;
     std::unique_ptr<EventRepository> m_eventRepository;
+    void seedDemoData();
 };
 
 } // namespace data
