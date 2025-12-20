@@ -6,15 +6,17 @@
 #include <QClipboard>
 #include <QDate>
 #include <QDateTime>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
-#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
 #include <QItemSelectionModel>
 #include <QLocale>
+#include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QShortcut>
 #include <QSignalBlocker>
@@ -819,21 +821,50 @@ void MainWindow::refreshTodos()
 
 void MainWindow::addQuickTodo()
 {
-    bool ok = false;
-    const auto title = QInputDialog::getText(this, tr("Neues TODO"), tr("Titel"), QLineEdit::Normal, QString(), &ok);
-    if (!ok || title.trimmed().isEmpty()) {
+    QString initialText;
+    if (m_todoSearchField) {
+        initialText = m_todoSearchField->text().trimmed();
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Neues TODO"));
+    dialog.resize(480, 360);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *hint = new QLabel(tr("Eine Zeile pro TODO. Eingeschobene Zeilen beschreiben Details oder \"Ort:\"."), &dialog);
+    hint->setWordWrap(true);
+    layout->addWidget(hint);
+
+    auto *editor = new QPlainTextEdit(&dialog);
+    editor->setPlaceholderText(tr("Einkaufen 2h\n\tMilch\n\tOrt: Markt"));
+    editor->setPlainText(initialText);
+    if (!initialText.isEmpty()) {
+        editor->selectAll();
+    }
+    layout->addWidget(editor, 1);
+
+    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dialog);
+    layout->addWidget(buttonBox);
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted) {
         return;
     }
 
-    data::TodoItem todo;
-    todo.title = title.trimmed();
-    todo.description.clear();
-    todo.priority = 1;
-    todo.dueDate = QDateTime::currentDateTime().addDays(1);
+    const QString content = editor->toPlainText();
+    if (content.trimmed().isEmpty()) {
+        statusBar()->showMessage(tr("Keine Eingabe für neues TODO"), 2000);
+        return;
+    }
 
-    m_appContext->todoRepository().addTodo(std::move(todo));
-    refreshTodos();
-    statusBar()->showMessage(tr("TODO \"%1\" hinzugefügt").arg(title), 1500);
+    const int created = insertTodosFromPlainText(content, data::TodoStatus::Pending);
+    if (created <= 0) {
+        statusBar()->showMessage(tr("Keine TODOs erkannt"), 2000);
+        return;
+    }
+
+    statusBar()->showMessage(tr("%1 TODO(s) erstellt").arg(created), 2000);
 }
 
 void MainWindow::deleteSelectedTodos()
@@ -1504,19 +1535,28 @@ QString MainWindow::todosToPlainText(const QList<data::TodoItem> &todos) const
 
 void MainWindow::pasteTodosFromPlainText(data::TodoStatus status)
 {
-    if (!m_appContext) {
-        return;
-    }
     auto *clipboard = QGuiApplication::clipboard();
     if (!clipboard) {
         statusBar()->showMessage(tr("Zwischenablage nicht verfügbar"), 2000);
         return;
     }
     const QString content = clipboard->text(QClipboard::Clipboard);
-    const auto parsed = parsePlainTextTodos(content);
-    if (parsed.isEmpty()) {
+    const int count = insertTodosFromPlainText(content, status);
+    if (count <= 0) {
         statusBar()->showMessage(tr("Keine TODOs erkannt"), 2000);
         return;
+    }
+    statusBar()->showMessage(tr("%1 TODO(s) eingefügt").arg(count), 2000);
+}
+
+int MainWindow::insertTodosFromPlainText(const QString &text, data::TodoStatus status)
+{
+    if (!m_appContext) {
+        return 0;
+    }
+    const auto parsed = parsePlainTextTodos(text);
+    if (parsed.isEmpty()) {
+        return 0;
     }
     std::vector<data::TodoItem> templates;
     templates.reserve(static_cast<std::size_t>(parsed.size()));
@@ -1528,13 +1568,12 @@ void MainWindow::pasteTodosFromPlainText(data::TodoStatus status)
         todo.status = status;
         todo.durationMinutes = entry.durationMinutes;
         todo.scheduled = false;
-        templates.push_back(todo);
+        templates.push_back(std::move(todo));
     }
     auto command = std::make_unique<PlainTextInsertCommand>(m_appContext->todoRepository(), std::move(templates));
-    const int count = parsed.size();
     m_appContext->undoStack().push(std::move(command));
     refreshTodos();
-    statusBar()->showMessage(tr("%1 TODO(s) eingefügt").arg(count), 2000);
+    return parsed.size();
 }
 
 void MainWindow::performUndo()

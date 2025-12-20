@@ -101,6 +101,7 @@ private:
     TodoListView *todoViewForStatus(data::TodoStatus status) const;
     void setInlineEditorActive(bool active);
     void pasteTodosFromPlainText(data::TodoStatus status);
+    int insertTodosFromPlainText(const QString &text, data::TodoStatus status);
     QList<data::TodoItem> selectedTodos() const;
     QString todosToPlainText(const QList<data::TodoItem> &todos) const;
     void performUndo();
