@@ -196,6 +196,21 @@ void CalendarView::setHourHeight(double height)
     viewport()->update();
 }
 
+int CalendarView::verticalScrollValue() const
+{
+    if (auto *vbar = verticalScrollBar()) {
+        return vbar->value();
+    }
+    return 0;
+}
+
+void CalendarView::setVerticalScrollValue(int value)
+{
+    if (auto *vbar = verticalScrollBar()) {
+        vbar->setValue(qBound(vbar->minimum(), value, vbar->maximum()));
+    }
+}
+
 bool CalendarView::showMonthBand() const
 {
     return m_dayWidth < 75.0;

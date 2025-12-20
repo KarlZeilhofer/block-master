@@ -122,6 +122,7 @@ private:
     QDate m_currentDate;
     int m_visibleDays = 9;
     double m_savedHourHeight = 60.0;
+    int m_savedVerticalScroll = 0;
     std::optional<data::CalendarEvent> m_selectedEvent;
     std::optional<data::TodoItem> m_selectedTodo;
     QDateTime m_lastHoverDateTime;

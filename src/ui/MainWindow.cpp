@@ -463,6 +463,7 @@ QWidget *MainWindow::createCalendarView()
 
     m_calendarView = new CalendarView(panel);
     m_calendarView->setHourHeight(m_savedHourHeight);
+    m_calendarView->setVerticalScrollValue(m_savedVerticalScroll);
     connect(m_calendarView, &CalendarView::eventActivated, this, [this](const data::CalendarEvent &event) {
         statusBar()->showMessage(tr("Termin: %1, %2").arg(event.title, event.start.toString()), 2500);
     });
@@ -640,6 +641,9 @@ void MainWindow::saveCalendarState() const
     settings.setValue(QStringLiteral("calendar/visibleDays"), m_visibleDays);
     const double storedHeight = m_calendarView ? m_calendarView->hourHeight() : m_savedHourHeight;
     settings.setValue(QStringLiteral("calendar/hourHeight"), storedHeight);
+    if (m_calendarView) {
+        settings.setValue(QStringLiteral("calendar/verticalScroll"), m_calendarView->verticalScrollValue());
+    }
 }
 
 void MainWindow::restoreCalendarState()
@@ -655,6 +659,7 @@ void MainWindow::restoreCalendarState()
     if (storedHeight > 0.0) {
         m_savedHourHeight = storedHeight;
     }
+    m_savedVerticalScroll = settings.value(QStringLiteral("calendar/verticalScroll"), 0).toInt();
 }
 
 TodoFilterProxyModel *MainWindow::proxyForView(QListView *view) const

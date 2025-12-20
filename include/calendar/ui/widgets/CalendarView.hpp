@@ -29,6 +29,8 @@ public:
     void zoomTime(double factor);
     double hourHeight() const { return m_hourHeight; }
     void setHourHeight(double height);
+    int verticalScrollValue() const;
+    void setVerticalScrollValue(int value);
 signals:
     void dayZoomRequested(bool zoomIn);
     void dayScrollRequested(int dayDelta);
