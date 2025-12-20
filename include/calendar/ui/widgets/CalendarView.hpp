@@ -46,6 +46,7 @@ public:
     void updatePlacementPreview(const QDateTime &start);
     void cancelPlacementPreview();
     void clearExternalSelection();
+    void clearGhostPreview();
 
 protected:
     void paintEvent(QPaintEvent *event) override;

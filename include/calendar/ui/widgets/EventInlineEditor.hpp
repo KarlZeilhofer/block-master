@@ -24,6 +24,7 @@ public:
 
     void setEvent(const data::CalendarEvent &event);
     void setTodo(const data::TodoItem &todo);
+    void focusTitle(bool selectAll = false);
     void clearEditor();
     bool isTodoMode() const { return m_isTodo; }
 

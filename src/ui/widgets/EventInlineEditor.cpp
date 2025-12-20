@@ -26,6 +26,7 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
 
     m_titleEdit = new QLineEdit(this);
     formLayout->addRow(tr("Titel"), m_titleEdit);
+    connect(m_titleEdit, &QLineEdit::returnPressed, this, &EventInlineEditor::handleSave);
 
     m_locationEdit = new QLineEdit(this);
     formLayout->addRow(tr("Ort"), m_locationEdit);
@@ -106,6 +107,19 @@ void EventInlineEditor::setTodo(const data::TodoItem &todo)
     }
     m_descriptionEdit->setPlainText(todo.description);
     setVisible(true);
+}
+
+void EventInlineEditor::focusTitle(bool selectAll)
+{
+    if (!m_titleEdit) {
+        return;
+    }
+    m_titleEdit->setFocus(Qt::OtherFocusReason);
+    if (selectAll) {
+        m_titleEdit->selectAll();
+    } else {
+        m_titleEdit->setCursorPosition(m_titleEdit->text().length());
+    }
 }
 
 void EventInlineEditor::clearEditor()

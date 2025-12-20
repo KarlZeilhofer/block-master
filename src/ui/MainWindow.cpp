@@ -239,6 +239,7 @@ QWidget *MainWindow::createCalendarView()
     connect(m_eventEditor, &EventInlineEditor::cancelRequested, this, [this]() {
         if (m_calendarView) {
             m_calendarView->setFocus();
+            m_calendarView->clearGhostPreview();
         }
         if (m_eventEditor) {
             m_eventEditor->clearEditor();
@@ -555,6 +556,9 @@ void MainWindow::saveEventEdits(const data::CalendarEvent &event)
     if (m_eventEditor) {
         m_eventEditor->clearEditor();
     }
+    if (m_calendarView) {
+        m_calendarView->clearGhostPreview();
+    }
     refreshCalendar();
     statusBar()->showMessage(created ? tr("Termin erstellt: %1").arg(updated.title)
                                      : tr("Termin gespeichert: %1").arg(updated.title),
@@ -610,6 +614,9 @@ void MainWindow::clearSelection()
         m_previewPanel->clearPreview();
     }
     m_previewVisible = false;
+    if (m_calendarView) {
+        m_calendarView->clearGhostPreview();
+    }
     cancelPendingPlacement();
 }
 
@@ -760,12 +767,13 @@ void MainWindow::handleEventCreationRequest(const QDateTime &start, const QDateT
     m_previewVisible = false;
 
     data::CalendarEvent event;
+    event.title = tr("Neuer Termin");
     event.start = start;
     event.end = end;
     if (m_eventEditor) {
         m_eventEditor->setEvent(event);
         m_eventEditor->setVisible(true);
-        m_eventEditor->setFocus();
+        m_eventEditor->focusTitle(true);
     }
     statusBar()->showMessage(tr("Neuen Termin festgelegt: %1 - %2")
                                  .arg(start.toString(QStringLiteral("hh:mm")),

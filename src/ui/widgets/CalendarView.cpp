@@ -342,6 +342,7 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
         m_selectedEvent = {};
         viewport()->update();
         emit selectionCleared();
+        clearDropPreview();
         auto dateTimeOpt = dateTimeAtScene(scenePos);
         if (dateTimeOpt) {
             QDateTime anchor = dateTimeOpt.value();
@@ -649,6 +650,11 @@ void CalendarView::clearExternalSelection()
 {
     m_selectedEvent = QUuid();
     viewport()->update();
+}
+
+void CalendarView::clearGhostPreview()
+{
+    clearDropPreview();
 }
 
 QRectF CalendarView::eventRect(const data::CalendarEvent &event) const
@@ -982,13 +988,15 @@ void CalendarView::finalizeNewEventDrag()
         cancelNewEventDrag();
         return;
     }
-    clearDropPreview();
     m_dragInteractionActive = false;
     m_newEventDragActive = false;
-    m_newEventDragPending = false;
-    if (m_newEventStart.isValid() && m_newEventEnd.isValid() && m_newEventEnd > m_newEventStart) {
+    const bool validRange = m_newEventStart.isValid() && m_newEventEnd.isValid() && m_newEventEnd > m_newEventStart;
+    if (validRange) {
         emit eventCreationRequested(m_newEventStart, m_newEventEnd);
+    } else {
+        clearDropPreview();
     }
+    m_newEventDragPending = false;
     m_newEventAnchorTime = QDateTime();
     m_newEventStart = QDateTime();
     m_newEventEnd = QDateTime();
