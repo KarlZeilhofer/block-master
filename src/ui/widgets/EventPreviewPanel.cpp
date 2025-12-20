@@ -44,9 +44,21 @@ EventPreviewPanel::EventPreviewPanel(QWidget *parent)
 void EventPreviewPanel::setEvent(const data::CalendarEvent &event)
 {
     m_titleLabel->setText(event.title.isEmpty() ? tr("(Ohne Titel)") : event.title);
-    const QString timeText = tr("%1 – %2")
+    qint64 durationMinutes = qMax<qint64>(15, event.start.secsTo(event.end) / 60);
+    const int hours = static_cast<int>(durationMinutes / 60);
+    const int minutes = static_cast<int>(durationMinutes % 60);
+    QString durationText;
+    if (hours > 0 && minutes > 0) {
+        durationText = tr("%1 h %2 min").arg(hours).arg(minutes);
+    } else if (hours > 0) {
+        durationText = tr("%1 h").arg(hours);
+    } else {
+        durationText = tr("%1 min").arg(minutes);
+    }
+    const QString timeText = tr("%1 – %2 (%3)")
                                  .arg(event.start.toString(QStringLiteral("ddd, dd.MM. hh:mm")),
-                                      event.end.toString(QStringLiteral("hh:mm")));
+                                      event.end.toString(QStringLiteral("hh:mm")),
+                                      durationText);
     m_timeLabel->setText(timeText);
 
     m_locationLabel->setText(event.location.isEmpty() ? tr("Ort: –") : tr("Ort: %1").arg(event.location));
