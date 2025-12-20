@@ -70,6 +70,7 @@ void CalendarView::setDateRange(const QDate &start, int days)
 void CalendarView::setEvents(std::vector<data::CalendarEvent> events)
 {
     m_events = std::move(events);
+    m_allowNewEventCreation = true;
     if (!m_selectedEvent.isNull()) {
         auto it = std::find_if(m_events.begin(), m_events.end(), [this](const data::CalendarEvent &ev) {
             return ev.id == m_selectedEvent;
@@ -343,6 +344,10 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
         viewport()->update();
         emit selectionCleared();
         clearDropPreview();
+        if (!m_allowNewEventCreation) {
+            event->accept();
+            return;
+        }
         auto dateTimeOpt = dateTimeAtScene(scenePos);
         if (dateTimeOpt) {
             QDateTime anchor = dateTimeOpt.value();
@@ -536,6 +541,7 @@ void CalendarView::dropEvent(QDropEvent *event)
         minutes = snapMinutes(minutes);
         dateTime.setTime(QTime(minutes / 60, minutes % 60));
         emit todoDropped(todoId, dateTime);
+        m_allowNewEventCreation = false;
         event->setDropAction(Qt::MoveAction);
         event->accept();
         return;
@@ -562,6 +568,7 @@ void CalendarView::dropEvent(QDropEvent *event)
         dateTime.setTime(QTime(minutes / 60, minutes % 60));
         bool copy = event->keyboardModifiers().testFlag(Qt::ControlModifier);
         emit eventDropRequested(eventId, dateTime, copy);
+        m_allowNewEventCreation = false;
         event->setDropAction(copy ? Qt::CopyAction : Qt::MoveAction);
         event->accept();
         return;
@@ -902,6 +909,7 @@ void CalendarView::finalizeInternalEventDrag(const QPointF &scenePos)
         target.setTime(QTime(minutes / 60, minutes % 60));
         bool copy = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
         emit eventDropRequested(m_internalDragSource.id, target, copy);
+        m_allowNewEventCreation = false;
     }
     cancelInternalEventDrag();
 }

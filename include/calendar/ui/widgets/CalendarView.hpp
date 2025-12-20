@@ -131,6 +131,7 @@ private:
     QDateTime m_newEventAnchorTime;
     QDateTime m_newEventStart;
     QDateTime m_newEventEnd;
+    bool m_allowNewEventCreation = true;
 };
 
 } // namespace ui

@@ -23,9 +23,6 @@ Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht
 
 Cursor-Position braucht nicht in der Statusleiste angezeigt werden. Völlig unnötig. Zeige lieber Shortcuts an. 
 
-Manchmal kommt es dazu, dass der Inline-Editor aufpoppt, wenn man einen Termin an den Handles zieht. 
-Das passiert immer dann, wenn der Event zuvor per dragndrop verschoben wurde. 
-
 
 
 Die Texte in der Titelzeile sind nicht immer lesbar, je nachdem, wie breit die Spalten sind. 
@@ -42,6 +39,12 @@ WIP ################################
 
 
 DONE ###############################
+
+Manchmal kommt es dazu, dass der Inline-Editor aufpoppt, wenn man einen Termin an den Handles zieht. 
+Das passiert immer dann, wenn der Event zuvor per dragndrop verschoben wurde. 
+
+Im "Details Panel" soll neben  den Uhrzeiten auch die Dauer angezeigt werden.
+
 
 Entferne die Dummy-Erzeugung im Quellcode - durch das Laden der Persistenten Daten ist das nicht mehr nötig. 
 

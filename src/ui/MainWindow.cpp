@@ -593,7 +593,7 @@ void MainWindow::applyEventResize(const QUuid &id, const QDateTime &newStart, co
     existing->start = newStart;
     existing->end = newEnd;
     m_appContext->eventRepository().updateEvent(*existing);
-    if (m_selectedEvent && m_selectedEvent->id == id && m_eventEditor) {
+    if (m_selectedEvent && m_selectedEvent->id == id && m_eventEditor && m_eventEditor->isVisible()) {
         m_eventEditor->setEvent(*existing);
     }
     refreshCalendar();
