@@ -75,6 +75,7 @@ private:
     void pasteClipboardAt(const QDateTime &targetStart);
     QDateTime snapToQuarterHour(const QDateTime &dt) const;
     void cancelPendingPlacement();
+    void deleteSelection();
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;

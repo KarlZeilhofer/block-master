@@ -184,6 +184,7 @@ QWidget *MainWindow::createTodoPanel()
 
     auto *deleteAction = new QAction(tr("TODO löschen"), todoList);
     deleteAction->setShortcut(QKeySequence::Delete);
+    deleteAction->setShortcutContext(Qt::WidgetShortcut);
     todoList->addAction(deleteAction);
     connect(deleteAction, &QAction::triggered, this, &MainWindow::deleteSelectedTodos);
     addAction(deleteAction);
@@ -310,6 +311,10 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
     auto *duplicateShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_D), this);
     duplicateShortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(duplicateShortcut, &QShortcut::activated, this, &MainWindow::duplicateSelection);
+
+    auto *deleteShortcut = new QShortcut(QKeySequence::Delete, this);
+    deleteShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(deleteShortcut, &QShortcut::activated, this, &MainWindow::deleteSelection);
 
     auto *cancelPasteShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
     cancelPasteShortcut->setContext(Qt::WidgetWithChildrenShortcut);
@@ -745,6 +750,27 @@ void MainWindow::cancelPendingPlacement()
     m_pendingPlacement = false;
     if (m_calendarView) {
         m_calendarView->cancelPlacementPreview();
+    }
+}
+
+void MainWindow::deleteSelection()
+{
+    if (m_selectedEvent.id.isNull()) {
+        return;
+    }
+    if (m_eventEditor) {
+        m_eventEditor->clearEditor();
+    }
+    cancelPendingPlacement();
+    const bool removed = m_appContext->eventRepository().removeEvent(m_selectedEvent.id);
+    if (removed) {
+        statusBar()->showMessage(tr("Termin gelöscht"), 2000);
+        m_selectedEvent = data::CalendarEvent();
+        if (m_previewPanel) {
+            m_previewPanel->clearEvent();
+        }
+        m_previewVisible = false;
+        refreshCalendar();
     }
 }
 
