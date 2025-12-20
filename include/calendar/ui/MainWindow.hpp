@@ -2,10 +2,10 @@
 
 #include <QDate>
 #include <QMainWindow>
-#include <QModelIndex>
 #include <memory>
 #include <vector>
 #include <optional>
+#include <QModelIndex>
 
 #include "calendar/data/Event.hpp"
 #include "calendar/data/Todo.hpp"
@@ -13,9 +13,9 @@
 class QToolBar;
 class QListView;
 class QLineEdit;
-class QComboBox;
 class QLabel;
 class QShortcut;
+class QSplitter;
 
 namespace calendar {
 namespace core {
@@ -31,6 +31,7 @@ class CalendarView;
 class EventInlineEditor;
 class EventDetailDialog;
 class EventPreviewPanel;
+class TodoListView;
 
 class MainWindow : public QMainWindow
 {
@@ -46,6 +47,15 @@ private:
     QWidget *createTodoPanel();
     QWidget *createCalendarView();
     void setupShortcuts(QToolBar *toolbar);
+    void saveTodoSplitterState() const;
+    void restoreTodoSplitterState();
+    TodoFilterProxyModel *proxyForView(QListView *view) const;
+    void handleTodoSelectionChanged(TodoListView *view);
+    void clearOtherTodoSelections(QListView *except);
+    QListView *activeTodoView() const;
+    void updateTodoFilterText(const QString &text);
+    void handleTodoStatusDrop(const QList<QUuid> &todoIds, data::TodoStatus status);
+    void clearAllTodoSelections();
     void goToday();
     void navigateForward();
     void navigateBackward();
@@ -53,7 +63,6 @@ private:
     void addQuickTodo();
     void deleteSelectedTodos();
     void handleTodoActivated(const QModelIndex &index);
-    void updateStatusFilter(int index);
     void refreshCalendar();
     void updateCalendarRange();
     void zoomCalendarHorizontally(bool in);
@@ -88,9 +97,11 @@ private:
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;
-    QListView *m_todoListView = nullptr;
+    QSplitter *m_todoSplitter = nullptr;
+    TodoListView *m_todoPendingView = nullptr;
+    TodoListView *m_todoInProgressView = nullptr;
+    TodoListView *m_todoDoneView = nullptr;
     QLineEdit *m_todoSearchField = nullptr;
-    QComboBox *m_todoStatusFilter = nullptr;
     CalendarView *m_calendarView = nullptr;
     QLabel *m_viewInfoLabel = nullptr;
     EventInlineEditor *m_eventEditor = nullptr;
@@ -108,9 +119,12 @@ private:
     QString m_pendingPlacementLabel;
     std::unique_ptr<core::AppContext> m_appContext;
     std::unique_ptr<TodoListViewModel> m_todoViewModel;
-    std::unique_ptr<TodoFilterProxyModel> m_todoProxyModel;
+    std::unique_ptr<TodoFilterProxyModel> m_pendingProxyModel;
+    std::unique_ptr<TodoFilterProxyModel> m_inProgressProxyModel;
+    std::unique_ptr<TodoFilterProxyModel> m_doneProxyModel;
     std::unique_ptr<ScheduleViewModel> m_scheduleViewModel;
     QAction *m_editEventAction = nullptr;
+    QListView *m_activeTodoView = nullptr;
 };
 
 } // namespace ui

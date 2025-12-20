@@ -15,6 +15,9 @@ Autoreifen kaufen
 
 Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
 
+Merke dir die letzte Ansicht (erster Tag, Zoomlevel) in QSettings. 
+Oranization: "Zellhoff", Domain: "zellhoff.at", Appname: "Task Master"
+
 
 Entfernen von TODOs per Delete-Taste
 
@@ -34,16 +37,29 @@ Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datu
 
 Wird ein Event in die Todo-Leiste gezogen, dann sollt dort auch ein Ghost-Element angezeigt werden. 
 
+Wird ein Event in dei Todo-Liste gezogen, soll dem TODO die Dauer des Tasks erhalten bleiben.
+Es braucht daher eine neue Eigenschaft "duration" für TODOs. Könnte man auch mit dem universellen
+UNIX timestamp lösen: Beginnt um 0:00 am 1.1.1970 und endet entsprchend später. Mit diesem Spezialfall
+könnte es vermieden werden, dass es ein neues Feld braucht. 
+Beim Einfügen in den Kalender soll das Ghostelement dann gleich die richtige Größe (=Dauer) haben. 
+Aktuell wird immer 1 Stunde angenommen. Das soll weiterhin so sein, für TODOs, die noch keine Dauer festgelegt bekommenb haben. 
+
+
 
 WIP ################################
 
+Links soll es 3 Listen geben:
+Offen (oben), In Arbeit (mittig), Erledigt (unten)
+Erledigt soll graue Schrift haben. 
+Die Dropdown für Alle/Erledigt/Offen/InArbeit braucht es somit nicht mehr. 
+Der Suchfilter wird immer auf alle 3 Listen angewandt.  
+Die größe der Listenfelder soll durch mittiges ziehen angepasst werden können (muss auch in QSettings gemerkt werden)
 
 DONE ###############################
+Im "Details Panel" soll neben  den Uhrzeiten auch die Dauer angezeigt werden.
 
 Manchmal kommt es dazu, dass der Inline-Editor aufpoppt, wenn man einen Termin an den Handles zieht. 
 Das passiert immer dann, wenn der Event zuvor per dragndrop verschoben wurde. 
-
-Im "Details Panel" soll neben  den Uhrzeiten auch die Dauer angezeigt werden.
 
 
 Entferne die Dummy-Erzeugung im Quellcode - durch das Laden der Persistenten Daten ist das nicht mehr nötig. 

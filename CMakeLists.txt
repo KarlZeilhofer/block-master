@@ -44,6 +44,8 @@ add_library(calendar_ui STATIC
     include/calendar/ui/widgets/EventInlineEditor.hpp
     src/ui/widgets/EventPreviewPanel.cpp
     include/calendar/ui/widgets/EventPreviewPanel.hpp
+    src/ui/widgets/TodoListView.cpp
+    include/calendar/ui/widgets/TodoListView.hpp
     src/ui/dialogs/EventDetailDialog.cpp
     include/calendar/ui/dialogs/EventDetailDialog.hpp
 )

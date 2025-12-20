@@ -3,7 +3,6 @@
 #include <QAbstractItemView>
 #include <QAction>
 #include <QApplication>
-#include <QComboBox>
 #include <QDate>
 #include <QDateTime>
 #include <QFrame>
@@ -15,7 +14,9 @@
 #include <QItemSelectionModel>
 #include <QLocale>
 #include <QShortcut>
+#include <QSignalBlocker>
 #include <QSplitter>
+#include <QSettings>
 #include <QStatusBar>
 #include <QtMath>
 #include <QToolBar>
@@ -36,6 +37,7 @@
 #include "calendar/ui/widgets/CalendarView.hpp"
 #include "calendar/ui/widgets/EventInlineEditor.hpp"
 #include "calendar/ui/widgets/EventPreviewPanel.hpp"
+#include "calendar/ui/widgets/TodoListView.hpp"
 #include "calendar/ui/dialogs/EventDetailDialog.hpp"
 
 namespace calendar {
@@ -45,16 +47,36 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_appContext(std::make_unique<core::AppContext>())
     , m_todoViewModel(std::make_unique<TodoListViewModel>(m_appContext->todoRepository()))
-    , m_todoProxyModel(std::make_unique<TodoFilterProxyModel>())
+    , m_pendingProxyModel(std::make_unique<TodoFilterProxyModel>())
+    , m_inProgressProxyModel(std::make_unique<TodoFilterProxyModel>())
+    , m_doneProxyModel(std::make_unique<TodoFilterProxyModel>())
     , m_scheduleViewModel(std::make_unique<ScheduleViewModel>(m_appContext->eventRepository()))
 {
+    if (m_todoViewModel) {
+        auto *model = m_todoViewModel->model();
+        if (m_pendingProxyModel) {
+            m_pendingProxyModel->setSourceModel(model);
+            m_pendingProxyModel->setStatusFilter(std::optional<data::TodoStatus>(data::TodoStatus::Pending));
+        }
+        if (m_inProgressProxyModel) {
+            m_inProgressProxyModel->setSourceModel(model);
+            m_inProgressProxyModel->setStatusFilter(std::optional<data::TodoStatus>(data::TodoStatus::InProgress));
+        }
+        if (m_doneProxyModel) {
+            m_doneProxyModel->setSourceModel(model);
+            m_doneProxyModel->setStatusFilter(std::optional<data::TodoStatus>(data::TodoStatus::Completed));
+        }
+    }
     m_currentDate = alignToWeekStart(QDate::currentDate());
     setupUi();
     refreshTodos();
     refreshCalendar();
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow()
+{
+    saveTodoSplitterState();
+}
 
 void MainWindow::setupUi()
 {
@@ -155,53 +177,77 @@ QWidget *MainWindow::createTodoPanel()
     m_todoSearchField = new QLineEdit(panel);
     m_todoSearchField->setPlaceholderText(tr("Suche…"));
     connect(m_todoSearchField, &QLineEdit::textChanged, this, [this](const QString &text) {
-        if (m_todoProxyModel) {
-            m_todoProxyModel->setFilterText(text);
-        }
+        updateTodoFilterText(text);
     });
-
-    m_todoStatusFilter = new QComboBox(panel);
-    m_todoStatusFilter->addItem(tr("Alle"), QVariant());
-    m_todoStatusFilter->addItem(tr("Offen"), static_cast<int>(data::TodoStatus::Pending));
-    m_todoStatusFilter->addItem(tr("In Arbeit"), static_cast<int>(data::TodoStatus::InProgress));
-    m_todoStatusFilter->addItem(tr("Erledigt"), static_cast<int>(data::TodoStatus::Completed));
-    connect(m_todoStatusFilter, qOverload<int>(&QComboBox::currentIndexChanged), this, &MainWindow::updateStatusFilter);
-
-    auto *todoList = new QListView(panel);
-    todoList->setObjectName(QStringLiteral("todoList"));
-    todoList->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    todoList->setSelectionBehavior(QAbstractItemView::SelectRows);
-    todoList->setUniformItemSizes(true);
-    todoList->setDragEnabled(true);
-    todoList->setDragDropMode(QAbstractItemView::DragOnly);
-    todoList->setContextMenuPolicy(Qt::ActionsContextMenu);
-    todoList->setToolTip(tr("TODO-Liste (Drag & Drop in Kalender)"));
-    connect(todoList, &QListView::activated, this, &MainWindow::handleTodoActivated);
-    m_todoListView = todoList;
-
-    if (m_todoProxyModel && m_todoViewModel) {
-        m_todoProxyModel->setSourceModel(m_todoViewModel->model());
-        todoList->setModel(m_todoProxyModel.get());
-        connect(todoList->selectionModel(),
-                &QItemSelectionModel::selectionChanged,
-                this,
-                &MainWindow::handleTodoSelectionChanged);
-    }
-
-    auto *deleteAction = new QAction(tr("TODO löschen"), todoList);
-    deleteAction->setShortcut(QKeySequence::Delete);
-    deleteAction->setShortcutContext(Qt::WidgetShortcut);
-    todoList->addAction(deleteAction);
-    connect(deleteAction, &QAction::triggered, this, &MainWindow::deleteSelectedTodos);
-    addAction(deleteAction);
 
     layout->addLayout(headerLayout);
     layout->addWidget(m_todoSearchField);
-    layout->addWidget(m_todoStatusFilter);
 
-    layout->addWidget(todoList, 1);
-    panel->setMinimumWidth(280);
-    panel->setMaximumWidth(450);
+    m_todoSplitter = new QSplitter(Qt::Vertical, panel);
+    m_todoSplitter->setObjectName(QStringLiteral("todoSplitter"));
+
+    auto createSection = [this, panel](const QString &sectionTitle,
+                                       TodoListView *&view,
+                                       TodoFilterProxyModel *proxy,
+                                       data::TodoStatus status,
+                                       bool completed) {
+        auto *container = new QWidget(panel);
+        auto *sectionLayout = new QVBoxLayout(container);
+        sectionLayout->setContentsMargins(0, 0, 0, 0);
+        sectionLayout->setSpacing(2);
+
+        auto *label = new QLabel(sectionTitle, container);
+        QFont labelFont = label->font();
+        labelFont.setBold(true);
+        label->setFont(labelFont);
+        sectionLayout->addWidget(label);
+
+        view = new TodoListView(container);
+        view->setObjectName(QStringLiteral("todoList"));
+        view->setSelectionMode(QAbstractItemView::ExtendedSelection);
+        view->setSelectionBehavior(QAbstractItemView::SelectRows);
+        view->setUniformItemSizes(true);
+        view->setDragDropMode(QAbstractItemView::DragDrop);
+        view->setToolTip(tr("TODO-Liste (Drag & Drop in Kalender)"));
+        view->setTargetStatus(status);
+        if (proxy) {
+            view->setModel(proxy);
+            connect(view->selectionModel(),
+                    &QItemSelectionModel::selectionChanged,
+                    this,
+                    [this, view](const QItemSelection &, const QItemSelection &) {
+                        handleTodoSelectionChanged(view);
+                    });
+        }
+        connect(view, &TodoListView::activated, this, &MainWindow::handleTodoActivated);
+        connect(view, &TodoListView::todosDropped, this, &MainWindow::handleTodoStatusDrop);
+        view->setContextMenuPolicy(Qt::ActionsContextMenu);
+        if (completed) {
+            QPalette pal = view->palette();
+            pal.setColor(QPalette::Text, QColor(130, 130, 130));
+            view->setPalette(pal);
+        }
+
+        auto *deleteAction = new QAction(tr("TODO löschen"), view);
+        deleteAction->setShortcut(QKeySequence::Delete);
+        deleteAction->setShortcutContext(Qt::WidgetShortcut);
+        view->addAction(deleteAction);
+        connect(deleteAction, &QAction::triggered, this, &MainWindow::deleteSelectedTodos);
+        addAction(deleteAction);
+
+        sectionLayout->addWidget(view, 1);
+        m_todoSplitter->addWidget(container);
+    };
+
+    createSection(tr("Offen"), m_todoPendingView, m_pendingProxyModel.get(), data::TodoStatus::Pending, false);
+    createSection(tr("In Arbeit"), m_todoInProgressView, m_inProgressProxyModel.get(), data::TodoStatus::InProgress, false);
+    createSection(tr("Erledigt"), m_todoDoneView, m_doneProxyModel.get(), data::TodoStatus::Completed, true);
+
+    layout->addWidget(m_todoSplitter, 1);
+    panel->setMinimumWidth(300);
+    panel->setMaximumWidth(520);
+
+    restoreTodoSplitterState();
 
     return panel;
 }
@@ -336,6 +382,125 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
     connect(cancelPasteShortcut, &QShortcut::activated, this, &MainWindow::cancelPendingPlacement);
 }
 
+void MainWindow::saveTodoSplitterState() const
+{
+    if (!m_todoSplitter) {
+        return;
+    }
+    QSettings settings(QStringLiteral("TaskMaster"), QStringLiteral("TaskMaster"));
+    QVariantList serialized;
+    for (int size : m_todoSplitter->sizes()) {
+        serialized << size;
+    }
+    settings.setValue(QStringLiteral("ui/todoSplitterSizes"), serialized);
+}
+
+void MainWindow::restoreTodoSplitterState()
+{
+    if (!m_todoSplitter) {
+        return;
+    }
+    QSettings settings(QStringLiteral("TaskMaster"), QStringLiteral("TaskMaster"));
+    const QVariant value = settings.value(QStringLiteral("ui/todoSplitterSizes"));
+    if (!value.isValid()) {
+        return;
+    }
+    const auto list = value.toList();
+    if (list.isEmpty()) {
+        return;
+    }
+    QList<int> sizes;
+    sizes.reserve(list.size());
+    for (const auto &entry : list) {
+        sizes << entry.toInt();
+    }
+    if (sizes.size() == m_todoSplitter->count()) {
+        m_todoSplitter->setSizes(sizes);
+    }
+}
+
+TodoFilterProxyModel *MainWindow::proxyForView(QListView *view) const
+{
+    if (view == m_todoPendingView) {
+        return m_pendingProxyModel.get();
+    }
+    if (view == m_todoInProgressView) {
+        return m_inProgressProxyModel.get();
+    }
+    if (view == m_todoDoneView) {
+        return m_doneProxyModel.get();
+    }
+    return nullptr;
+}
+
+void MainWindow::updateTodoFilterText(const QString &text)
+{
+    if (m_pendingProxyModel) {
+        m_pendingProxyModel->setFilterText(text);
+    }
+    if (m_inProgressProxyModel) {
+        m_inProgressProxyModel->setFilterText(text);
+    }
+    if (m_doneProxyModel) {
+        m_doneProxyModel->setFilterText(text);
+    }
+}
+
+void MainWindow::handleTodoStatusDrop(const QList<QUuid> &todoIds, data::TodoStatus status)
+{
+    bool changed = false;
+    for (const auto &id : todoIds) {
+        auto todo = m_appContext->todoRepository().findById(id);
+        if (!todo.has_value()) {
+            continue;
+        }
+        if (todo->status == status) {
+            continue;
+        }
+        todo->status = status;
+        changed |= m_appContext->todoRepository().updateTodo(*todo);
+    }
+    if (changed) {
+        clearAllTodoSelections();
+        m_selectedTodo.reset();
+        refreshTodos();
+        statusBar()->showMessage(tr("TODO-Status aktualisiert"), 1500);
+    }
+}
+
+void MainWindow::clearOtherTodoSelections(QListView *except)
+{
+    auto clear = [except](TodoListView *view) {
+        if (!view || view == except) {
+            return;
+        }
+        if (auto *selectionModel = view->selectionModel()) {
+            QSignalBlocker blocker(selectionModel);
+            view->clearSelection();
+        }
+    };
+    clear(m_todoPendingView);
+    clear(m_todoInProgressView);
+    clear(m_todoDoneView);
+}
+
+void MainWindow::clearAllTodoSelections()
+{
+    auto clear = [](TodoListView *view) {
+        if (!view) {
+            return;
+        }
+        if (auto *selectionModel = view->selectionModel()) {
+            QSignalBlocker blocker(selectionModel);
+            view->clearSelection();
+        }
+    };
+    clear(m_todoPendingView);
+    clear(m_todoInProgressView);
+    clear(m_todoDoneView);
+    m_activeTodoView = nullptr;
+}
+
 void MainWindow::goToday()
 {
     m_currentDate = alignToWeekStart(QDate::currentDate());
@@ -376,8 +541,14 @@ void MainWindow::refreshTodos()
         return;
     }
     m_todoViewModel->refresh();
-    if (m_todoProxyModel) {
-        m_todoProxyModel->invalidate();
+    if (m_pendingProxyModel) {
+        m_pendingProxyModel->invalidate();
+    }
+    if (m_inProgressProxyModel) {
+        m_inProgressProxyModel->invalidate();
+    }
+    if (m_doneProxyModel) {
+        m_doneProxyModel->invalidate();
     }
 }
 
@@ -402,18 +573,28 @@ void MainWindow::addQuickTodo()
 
 void MainWindow::deleteSelectedTodos()
 {
-    if (!m_todoListView || !m_todoProxyModel) {
+    if (!m_todoViewModel || !m_activeTodoView) {
         return;
     }
-    const auto indexes = m_todoListView->selectionModel()->selectedIndexes();
+    auto *selectionModel = m_activeTodoView->selectionModel();
+    auto *proxy = proxyForView(m_activeTodoView);
+    if (!selectionModel || !proxy) {
+        return;
+    }
+    const auto indexes = selectionModel->selectedIndexes();
+    if (indexes.isEmpty()) {
+        return;
+    }
     bool removed = false;
     for (const auto &index : indexes) {
-        const auto sourceIndex = m_todoProxyModel->mapToSource(index);
+        const auto sourceIndex = proxy->mapToSource(index);
         if (const auto *todo = m_todoViewModel->model()->todoAt(sourceIndex)) {
             removed |= m_appContext->todoRepository().removeTodo(todo->id);
         }
     }
     if (removed) {
+        clearAllTodoSelections();
+        m_selectedTodo.reset();
         refreshTodos();
         statusBar()->showMessage(tr("Ausgewählte TODOs gelöscht"), 1500);
     }
@@ -421,28 +602,17 @@ void MainWindow::deleteSelectedTodos()
 
 void MainWindow::handleTodoActivated(const QModelIndex &index)
 {
-    if (!m_todoProxyModel) {
+    auto *view = qobject_cast<QListView *>(sender());
+    auto *proxy = proxyForView(view);
+    if (!proxy || !m_todoViewModel) {
         return;
     }
-    const auto sourceIndex = m_todoProxyModel->mapToSource(index);
+    const auto sourceIndex = proxy->mapToSource(index);
     const auto *todo = m_todoViewModel->model()->todoAt(sourceIndex);
     if (!todo) {
         return;
     }
     statusBar()->showMessage(tr("TODO \"%1\" (Priorität %2)").arg(todo->title).arg(todo->priority), 2000);
-}
-
-void MainWindow::updateStatusFilter(int index)
-{
-    if (!m_todoStatusFilter || !m_todoProxyModel) {
-        return;
-    }
-    const auto data = m_todoStatusFilter->itemData(index);
-    if (!data.isValid()) {
-        m_todoProxyModel->setStatusFilter(std::nullopt);
-        return;
-    }
-    m_todoProxyModel->setStatusFilter(static_cast<data::TodoStatus>(data.toInt()));
 }
 
 void MainWindow::refreshCalendar()
@@ -457,9 +627,9 @@ void MainWindow::refreshCalendar()
     if (m_selectedEvent.has_value()) {
         if (auto latest = m_appContext->eventRepository().findById(m_selectedEvent->id)) {
             m_selectedEvent = *latest;
-    if (m_eventEditor && m_eventEditor->isVisible()) {
-        m_eventEditor->setEvent(*latest);
-    }
+            if (m_eventEditor && m_eventEditor->isVisible()) {
+                m_eventEditor->setEvent(*latest);
+            }
         } else {
             clearSelection();
         }
@@ -524,9 +694,7 @@ void MainWindow::handleEventSelected(const data::CalendarEvent &event)
 {
     m_selectedEvent = event;
     m_selectedTodo.reset();
-    if (m_todoListView) {
-        m_todoListView->clearSelection();
-    }
+    clearAllTodoSelections();
     if (m_editEventAction) {
         m_editEventAction->setEnabled(true);
     }
@@ -604,6 +772,7 @@ void MainWindow::clearSelection()
 {
     m_selectedEvent.reset();
     m_selectedTodo.reset();
+    clearAllTodoSelections();
     if (m_editEventAction) {
         m_editEventAction->setEnabled(false);
     }
@@ -637,34 +806,45 @@ void MainWindow::handleTodoDropped(const QUuid &todoId, const QDateTime &start)
     m_appContext->eventRepository().addEvent(event);
     m_appContext->todoRepository().removeTodo(todoId);
 
+    clearAllTodoSelections();
+    m_selectedTodo.reset();
     refreshTodos();
     refreshCalendar();
     statusBar()->showMessage(tr("TODO \"%1\" eingeplant").arg(todoOpt->title), 2000);
 }
 
-void MainWindow::handleTodoSelectionChanged()
+void MainWindow::handleTodoSelectionChanged(TodoListView *view)
 {
-    if (!m_todoListView || !m_todoProxyModel || !m_todoViewModel) {
+    if (!view || !m_todoViewModel) {
         return;
     }
-    const auto *selectionModel = m_todoListView->selectionModel();
+    auto *selectionModel = view->selectionModel();
     if (!selectionModel) {
         return;
     }
     const auto indexes = selectionModel->selectedIndexes();
     if (indexes.isEmpty()) {
-        bool hadTodo = m_selectedTodo.has_value();
-        m_selectedTodo.reset();
-        if (hadTodo && m_eventEditor && m_eventEditor->isTodoMode()) {
-            m_eventEditor->clearEditor();
-        }
-        if (m_previewVisible && !m_selectedEvent.has_value() && m_previewPanel) {
-            m_previewPanel->clearPreview();
-            m_previewVisible = false;
+        if (m_activeTodoView == view) {
+            m_activeTodoView = nullptr;
+            bool hadTodo = m_selectedTodo.has_value();
+            m_selectedTodo.reset();
+            if (hadTodo && m_eventEditor && m_eventEditor->isTodoMode()) {
+                m_eventEditor->clearEditor();
+            }
+            if (m_previewVisible && !m_selectedEvent.has_value() && m_previewPanel) {
+                m_previewPanel->clearPreview();
+                m_previewVisible = false;
+            }
         }
         return;
     }
-    const auto sourceIndex = m_todoProxyModel->mapToSource(indexes.front());
+    clearOtherTodoSelections(view);
+    m_activeTodoView = view;
+    auto *proxy = proxyForView(view);
+    if (!proxy) {
+        return;
+    }
+    const auto sourceIndex = proxy->mapToSource(indexes.front());
     if (const auto *todo = m_todoViewModel->model()->todoAt(sourceIndex)) {
         m_selectedTodo = *todo;
         m_selectedEvent.reset();
@@ -758,9 +938,7 @@ void MainWindow::handleEventCreationRequest(const QDateTime &start, const QDateT
     if (m_editEventAction) {
         m_editEventAction->setEnabled(false);
     }
-    if (m_todoListView) {
-        m_todoListView->clearSelection();
-    }
+    clearAllTodoSelections();
     if (m_previewPanel) {
         m_previewPanel->clearPreview();
     }

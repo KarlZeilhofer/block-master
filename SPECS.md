@@ -33,7 +33,7 @@ Hauptaufgaben:
 ```
 
 ### 4.1 Paneelaufteilung
-- **TODO-Liste**: anpassbare Breite, collapsible, enthält Filter (Status, Tag, Priorität). Elemente verschwinden nach erfolgreichem Drop in den Kalender (oder werden als „geplant“ markiert).
+- **TODO-Liste**: anpassbare Breite, collapsible, besteht aus drei vertikal geteilten Abschnitten (`Offen`, `In Arbeit`, `Erledigt`). Jeder Abschnitt hat eine eigene Liste (graue Typografie für „Erledigt“), die per Drag & Drop sowohl untereinander als auch mit dem Kalender interagiert. Die Teilbereiche lassen sich über einen Splitter proportional anpassen; die Größen werden in QSettings persistiert. Ein globaler Suchfilter (über den Listen) wirkt auf alle drei Abschnitte gleichzeitig. Elemente verschwinden nach erfolgreichem Drop in den Kalender (oder werden als „geplant“ markiert).
 - TODO-Einträge besitzen neben Titel auch Ort und Beschreibung; der Info-Dialog zeigt diese Felder an, egal ob ein Termin oder ein TODO markiert ist.
 - **Kalenderbereich**: Tabs oder Umschalter für Ansichten (Tag/Woche/Arbeitswoche/Monat/Agenda). Separate Zoomslider bzw. Gesten (Ctrl+Scroll = horizontaler Zoom, Shift+Scroll = vertikal).
 
@@ -70,6 +70,7 @@ Hauptaufgaben:
 
 ### 6.3 Drag & Drop
 - TODO aus linker Liste auf Zeit-Slot ziehen → Termin erzeugen, TODO verschwindet (oder wechselt in Status „geplant“).
+- TODOs lassen sich zwischen den drei Status-Listen per Drag verschieben; der Zielabschnitt aktualisiert automatisch den Status (Offen/In Arbeit/Erledigt).
 - Zwischen Kalenderansichten Drag & Drop unterstützen (z. B. Tag → Woche).
 - Drag-Klonen via `Ctrl`: kopiert Termin.
 - Snap-Regeln: Raster 5 Minuten, Halten von `Alt` erlaubt freie Positionierung.
