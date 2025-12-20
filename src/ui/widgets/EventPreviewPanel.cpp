@@ -59,7 +59,29 @@ void EventPreviewPanel::setEvent(const data::CalendarEvent &event)
     setVisible(true);
 }
 
+void EventPreviewPanel::setTodo(const data::TodoItem &todo)
+{
+    m_titleLabel->setText(todo.title.isEmpty() ? tr("(Ohne Titel)") : todo.title);
+    if (todo.dueDate.isValid()) {
+        m_timeLabel->setText(tr("Fällig: %1").arg(todo.dueDate.toString(QStringLiteral("ddd, dd.MM. hh:mm"))));
+    } else {
+        m_timeLabel->setText(tr("Fällig: –"));
+    }
+    m_locationLabel->setText(todo.location.isEmpty() ? tr("Ort: –") : tr("Ort: %1").arg(todo.location));
+    QString desc = todo.description;
+    if (desc.length() > 140) {
+        desc = desc.left(137) + QStringLiteral("…");
+    }
+    m_descriptionLabel->setText(desc.isEmpty() ? tr("Keine Beschreibung") : desc);
+    setVisible(true);
+}
+
 void EventPreviewPanel::clearEvent()
+{
+    clearPreview();
+}
+
+void EventPreviewPanel::clearPreview()
 {
     m_titleLabel->setText(tr("Kein Termin ausgewählt"));
     m_timeLabel->clear();

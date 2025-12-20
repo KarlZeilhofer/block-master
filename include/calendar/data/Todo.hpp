@@ -20,6 +20,7 @@ struct TodoItem
     QUuid id = QUuid::createUuid();
     QString title;
     QString description;
+    QString location;
     QDateTime dueDate;
     int priority = 0;
     QStringList tags;

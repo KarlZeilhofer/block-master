@@ -34,6 +34,7 @@ Hauptaufgaben:
 
 ### 4.1 Paneelaufteilung
 - **TODO-Liste**: anpassbare Breite, collapsible, enthält Filter (Status, Tag, Priorität). Elemente verschwinden nach erfolgreichem Drop in den Kalender (oder werden als „geplant“ markiert).
+- TODO-Einträge besitzen neben Titel auch Ort und Beschreibung; der Info-Dialog zeigt diese Felder an, egal ob ein Termin oder ein TODO markiert ist.
 - **Kalenderbereich**: Tabs oder Umschalter für Ansichten (Tag/Woche/Arbeitswoche/Monat/Agenda). Separate Zoomslider bzw. Gesten (Ctrl+Scroll = horizontaler Zoom, Shift+Scroll = vertikal).
 
 ### 4.2 Navigationskopf
@@ -49,6 +50,7 @@ Hauptaufgaben:
 - **Standardstart**: Beim Programmstart sowie nach `T` (Heute) zeigt der Kalender immer exakt 9 Tage, beginnend an einem Montag, damit stets auch Montag und Dienstag der Folgewoche sichtbar bleiben; der linke Tag ist generell auf Wochenanfang ausgerichtet. Die Spaltenbreiten passen sich automatisch an die Fensterbreite an, sodass diese 9 Tage (und alle anderen Zoomstufen) den vorhandenen Platz vollständig ausnutzen.
 - **Sticky Header**: Die Datums-/Titelzeile bleibt beim vertikalen Scrollen sichtbar und stellt jedes Datum zweizeilig in drei Blöcken dar (links großer fett gesetzter Tag, rechts daneben Wochentag sowie Monat+Jahr). Sonntage werden farblich hervorgehoben (rote Schrift/Hinterlegung), der aktuelle Tag erhält leuchtend grüne 3‑px‑Rasterlinien, während Monatsgrenzen mit identisch breiten schwarzen Linien markiert werden – so bleibt die zeitliche Orientierung ohne Scrollen erhalten.
 - **Interaktion bei Drag & Drop**: Während ein Objekt per Drag bewegt wird (inkl. TODO → Kalender, Event-Verschiebung, Ghost-Placement) bleiben horizontale Scrollgesten vollständig nutzbar: das horizontale Mausrad springt weiterhin tageweise, Pfeiltasten lösen wie gewohnt die Navigation im MainWindow aus, und die Ansicht reagiert identisch wie ohne aktive Drag-Aktion.
+- **Bidirektionales Dragging**: Ein Termin kann per Drag jederzeit zurück in die TODO-Liste gezogen werden. Beim Loslassen wird der Zeitbezug entfernt, ein neues TODO erzeugt und der ursprüngliche Event gelöscht; damit lassen sich Aufgaben schnell „entschedulen“.
 - Zoominteraktion: Mausrad + Modifier, Touchpad-Pinch, dedizierte Tastenkürzel (`Ctrl++`, `Ctrl+-`, `Ctrl+Shift++` für vertikal). Standard-Scroll ohne Modifier bewegt die Ansicht vertikal in 15-Minuten-Schritten; horizontale Scrollleisten gibt es nicht, stattdessen scrollt das horizontale Mausrad exakt einen Tag vor/zurück und löst damit eine „freischwebende“ Darstellung (nicht mehr zwangsweise Montag) aus. `Ctrl+Scroll` (oder die Toolbar-Buttons) ändern die Anzahl sichtbarer Tage zwischen 1 und 31 und sorgen für horizontales Zoomen ohne Scrollbar, `Shift+Scroll` zoomt vertikal.
 - Anzeige aktualisiert sich smooth (Scroll-Physik, Lazy Rendering bei >500 Events).
 

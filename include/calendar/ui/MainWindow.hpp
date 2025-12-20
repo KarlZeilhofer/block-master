@@ -5,8 +5,10 @@
 #include <QModelIndex>
 #include <memory>
 #include <vector>
+#include <optional>
 
 #include "calendar/data/Event.hpp"
+#include "calendar/data/Todo.hpp"
 
 class QToolBar;
 class QListView;
@@ -64,6 +66,8 @@ private:
     void clearSelection();
     void handleTodoDropped(const QUuid &todoId, const QDateTime &start);
     void handleEventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
+    void handleEventDroppedToTodo(const data::CalendarEvent &event);
+    void handleTodoSelectionChanged();
     void handlePlacementConfirmed(const QDateTime &start);
     void handleHoveredDateTime(const QDateTime &dt);
     void openInlineEditor();
@@ -94,6 +98,7 @@ private:
     QDate m_currentDate;
     int m_visibleDays = 9;
     data::CalendarEvent m_selectedEvent;
+    std::optional<data::TodoItem> m_selectedTodo;
     QDateTime m_lastHoverDateTime;
     std::vector<data::CalendarEvent> m_clipboardEvents;
     bool m_pendingPlacement = false;

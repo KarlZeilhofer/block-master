@@ -12,6 +12,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
+#include <QItemSelectionModel>
+#include <QLocale>
 #include <QShortcut>
 #include <QSplitter>
 #include <QStatusBar>
@@ -180,6 +182,10 @@ QWidget *MainWindow::createTodoPanel()
     if (m_todoProxyModel && m_todoViewModel) {
         m_todoProxyModel->setSourceModel(m_todoViewModel->model());
         todoList->setModel(m_todoProxyModel.get());
+        connect(todoList->selectionModel(),
+                &QItemSelectionModel::selectionChanged,
+                this,
+                &MainWindow::handleTodoSelectionChanged);
     }
 
     auto *deleteAction = new QAction(tr("TODO löschen"), todoList);
@@ -220,6 +226,7 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::externalPlacementConfirmed, this, &MainWindow::handlePlacementConfirmed);
     connect(m_calendarView, &CalendarView::dayZoomRequested, this, &MainWindow::zoomCalendarHorizontally);
     connect(m_calendarView, &CalendarView::dayScrollRequested, this, &MainWindow::scrollVisibleDays);
+    connect(m_calendarView, &CalendarView::eventDroppedToTodo, this, &MainWindow::handleEventDroppedToTodo);
 
     m_eventEditor = new EventInlineEditor(panel);
     m_eventEditor->setVisible(false);
@@ -510,6 +517,10 @@ void MainWindow::setVisibleDayCount(int days)
 void MainWindow::handleEventSelected(const data::CalendarEvent &event)
 {
     m_selectedEvent = event;
+    m_selectedTodo.reset();
+    if (m_todoListView) {
+        m_todoListView->clearSelection();
+    }
     if (m_editEventAction) {
         m_editEventAction->setEnabled(true);
     }
@@ -560,7 +571,7 @@ void MainWindow::clearSelection()
         m_eventEditor->clearEditor();
     }
     if (m_previewPanel) {
-        m_previewPanel->clearEvent();
+        m_previewPanel->clearPreview();
     }
     m_previewVisible = false;
     cancelPendingPlacement();
@@ -579,13 +590,45 @@ void MainWindow::handleTodoDropped(const QUuid &todoId, const QDateTime &start)
     event.description = todoOpt->description;
     event.start = start;
     event.end = start.addSecs(60 * 60);
-    event.location = tr("Geplant aus TODO");
+    event.location = todoOpt->location.isEmpty() ? tr("Geplant aus TODO") : todoOpt->location;
     m_appContext->eventRepository().addEvent(event);
     m_appContext->todoRepository().removeTodo(todoId);
 
     refreshTodos();
     refreshCalendar();
     statusBar()->showMessage(tr("TODO \"%1\" eingeplant").arg(todoOpt->title), 2000);
+}
+
+void MainWindow::handleTodoSelectionChanged()
+{
+    if (!m_todoListView || !m_todoProxyModel || !m_todoViewModel) {
+        return;
+    }
+    const auto *selectionModel = m_todoListView->selectionModel();
+    if (!selectionModel) {
+        return;
+    }
+    const auto indexes = selectionModel->selectedIndexes();
+    if (indexes.isEmpty()) {
+        m_selectedTodo.reset();
+        if (m_previewVisible && m_selectedEvent.id.isNull() && m_previewPanel) {
+            m_previewPanel->clearPreview();
+            m_previewVisible = false;
+        }
+        return;
+    }
+    const auto sourceIndex = m_todoProxyModel->mapToSource(indexes.front());
+    if (const auto *todo = m_todoViewModel->model()->todoAt(sourceIndex)) {
+        m_selectedTodo = *todo;
+        m_selectedEvent = data::CalendarEvent();
+        if (m_editEventAction) {
+            m_editEventAction->setEnabled(false);
+        }
+        cancelPendingPlacement();
+        if (m_previewVisible) {
+            showPreviewForSelection();
+        }
+    }
 }
 
 void MainWindow::handleEventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy)
@@ -608,6 +651,27 @@ void MainWindow::handleEventDropRequested(const QUuid &eventId, const QDateTime 
         statusBar()->showMessage(tr("Termin verschoben"), 1500);
     }
     refreshCalendar();
+}
+
+void MainWindow::handleEventDroppedToTodo(const data::CalendarEvent &event)
+{
+    data::TodoItem todo;
+    todo.title = event.title.isEmpty() ? tr("Termin %1").arg(QLocale().toString(event.start, QLocale::ShortFormat)) : event.title;
+    todo.description = event.description;
+    todo.location = event.location;
+    todo.dueDate = event.start;
+    todo.priority = 0;
+    todo.status = data::TodoStatus::Pending;
+    todo.scheduled = false;
+
+    m_appContext->todoRepository().addTodo(todo);
+    m_appContext->eventRepository().removeEvent(event.id);
+    if (!m_selectedEvent.id.isNull() && m_selectedEvent.id == event.id) {
+        clearSelection();
+    }
+    refreshTodos();
+    refreshCalendar();
+    statusBar()->showMessage(tr("Termin \"%1\" als TODO erfasst").arg(todo.title), 2000);
 }
 
 void MainWindow::handlePlacementConfirmed(const QDateTime &start)
@@ -641,7 +705,7 @@ void MainWindow::openInlineEditor()
     cancelPendingPlacement();
     m_previewVisible = false;
     if (m_previewPanel) {
-        m_previewPanel->clearEvent();
+        m_previewPanel->clearPreview();
     }
     m_eventEditor->setEvent(m_selectedEvent);
     m_eventEditor->setVisible(true);
@@ -671,7 +735,12 @@ void MainWindow::openDetailDialog()
 
 void MainWindow::togglePreviewPanel()
 {
-    if (!m_previewPanel || m_selectedEvent.id.isNull()) {
+    if (!m_previewPanel) {
+        return;
+    }
+    const bool hasEvent = !m_selectedEvent.id.isNull();
+    const bool hasTodo = m_selectedTodo.has_value();
+    if (!hasEvent && !hasTodo) {
         return;
     }
     cancelPendingPlacement();
@@ -682,17 +751,27 @@ void MainWindow::togglePreviewPanel()
     if (m_previewVisible) {
         showPreviewForSelection();
     } else {
-        m_previewPanel->clearEvent();
+        m_previewPanel->clearPreview();
     }
 }
 
 void MainWindow::showPreviewForSelection()
 {
-    if (!m_previewPanel || m_selectedEvent.id.isNull()) {
+    if (!m_previewPanel) {
         return;
     }
-    m_previewPanel->setEvent(m_selectedEvent);
-    m_previewVisible = true;
+    if (!m_selectedEvent.id.isNull()) {
+        m_previewPanel->setEvent(m_selectedEvent);
+        m_previewVisible = true;
+        return;
+    }
+    if (m_selectedTodo.has_value()) {
+        m_previewPanel->setTodo(*m_selectedTodo);
+        m_previewVisible = true;
+        return;
+    }
+    m_previewPanel->clearPreview();
+    m_previewVisible = false;
 }
 
 void MainWindow::showSelectionHint()
@@ -796,7 +875,7 @@ void MainWindow::deleteSelection()
         statusBar()->showMessage(tr("Termin gelöscht"), 2000);
         m_selectedEvent = data::CalendarEvent();
         if (m_previewPanel) {
-            m_previewPanel->clearEvent();
+            m_previewPanel->clearPreview();
         }
         m_previewVisible = false;
         refreshCalendar();

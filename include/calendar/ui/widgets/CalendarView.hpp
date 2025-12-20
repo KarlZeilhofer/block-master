@@ -37,6 +37,7 @@ signals:
     void todoDropped(const QUuid &todoId, const QDateTime &start);
     void eventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
     void externalPlacementConfirmed(const QDateTime &start);
+    void eventDroppedToTodo(const data::CalendarEvent &event);
 
 public:
     void beginPlacementPreview(int durationMinutes, const QString &label, const QDateTime &initialStart);
@@ -79,6 +80,7 @@ private:
     void updateInternalEventDrag(const QPointF &scenePos);
     void finalizeInternalEventDrag(const QPointF &scenePos);
     void cancelInternalEventDrag();
+    bool cursorOverTodoList(const QPoint &globalPos) const;
 
     QDate m_startDate;
     int m_dayCount = 5;

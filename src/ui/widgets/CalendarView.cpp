@@ -18,6 +18,7 @@
 #include <QIODevice>
 #include <QWheelEvent>
 #include <QCoreApplication>
+#include <QCursor>
 #include <algorithm>
 #include <map>
 
@@ -829,6 +830,12 @@ void CalendarView::finalizeInternalEventDrag(const QPointF &scenePos)
     if (!m_internalDragActive) {
         return;
     }
+    const QPoint globalPos = QCursor::pos();
+    if (cursorOverTodoList(globalPos)) {
+        emit eventDroppedToTodo(m_internalDragSource);
+        cancelInternalEventDrag();
+        return;
+    }
     auto dateTimeOpt = dateTimeAtScene(scenePos);
     if (dateTimeOpt) {
         QDateTime target = dateTimeOpt.value();
@@ -855,6 +862,18 @@ void CalendarView::cancelInternalEventDrag()
     m_dragInteractionActive = false;
     clearDropPreview();
     resetDragCandidate();
+}
+
+bool CalendarView::cursorOverTodoList(const QPoint &globalPos) const
+{
+    QWidget *widget = QApplication::widgetAt(globalPos);
+    while (widget) {
+        if (widget->objectName() == QLatin1String("todoList")) {
+            return true;
+        }
+        widget = widget->parentWidget();
+    }
+    return false;
 }
 
 void CalendarView::resetDragCandidate()
