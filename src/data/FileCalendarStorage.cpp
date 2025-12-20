@@ -287,7 +287,7 @@ void FileCalendarStorage::save() const
 
     stream << "BEGIN:VCALENDAR\n";
     stream << "VERSION:2.0\n";
-    stream << "PRODID:-//Task Master//EN\n";
+    stream << "PRODID:-//Block Master//EN\n";
 
     auto events = m_events.values();
     std::sort(events.begin(), events.end(), [](const CalendarEvent &lhs, const CalendarEvent &rhs) {

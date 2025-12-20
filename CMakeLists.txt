@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(TaskMaster VERSION 0.1.0 LANGUAGES CXX)
+project(BlockMaster VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -54,12 +54,12 @@ add_library(calendar_ui STATIC
 target_include_directories(calendar_ui PUBLIC include)
 target_link_libraries(calendar_ui PUBLIC Qt5::Widgets calendar_core calendar_data)
 
-add_executable(task-master
+add_executable(block-master
     src/main.cpp
 )
-target_link_libraries(task-master PRIVATE calendar_ui calendar_core calendar_data)
+target_link_libraries(block-master PRIVATE calendar_ui calendar_core calendar_data)
 
-install(TARGETS task-master
+install(TARGETS block-master
     RUNTIME DESTINATION bin
 )
 

@@ -15,7 +15,7 @@ DataProvider::DataProvider()
 {
     QString storageFolder = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     if (storageFolder.isEmpty()) {
-        storageFolder = QDir::homePath() + QStringLiteral("/.local/share/task-master");
+        storageFolder = QDir::homePath() + QStringLiteral("/.local/share/block-master");
     }
     QDir dir(storageFolder);
     if (!dir.exists()) {

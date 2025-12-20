@@ -274,7 +274,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUi()
 {
-    setWindowTitle(tr("Task Master"));
+    setWindowTitle(tr("Block Master"));
     resize(1200, 800);
 
     auto *toolbar = createNavigationBar();
@@ -598,7 +598,7 @@ void MainWindow::saveTodoSplitterState() const
     if (!m_todoSplitter) {
         return;
     }
-    QSettings settings(QStringLiteral("TaskMaster"), QStringLiteral("TaskMaster"));
+    QSettings settings(QStringLiteral("BlockMaster"), QStringLiteral("BlockMaster"));
     QVariantList serialized;
     for (int size : m_todoSplitter->sizes()) {
         serialized << size;
@@ -611,7 +611,7 @@ void MainWindow::restoreTodoSplitterState()
     if (!m_todoSplitter) {
         return;
     }
-    QSettings settings(QStringLiteral("TaskMaster"), QStringLiteral("TaskMaster"));
+    QSettings settings(QStringLiteral("BlockMaster"), QStringLiteral("BlockMaster"));
     const QVariant value = settings.value(QStringLiteral("ui/todoSplitterSizes"));
     if (!value.isValid()) {
         return;

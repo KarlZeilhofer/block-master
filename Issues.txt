@@ -1,7 +1,5 @@
 Issues ###########################
 
-Die App soll umbenann werden von "Task Master" auf "Block Master"
-
 Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
 
 Merke dir die letzte Ansicht (erster Tag, Zoomlevel) in QSettings. 
@@ -60,6 +58,8 @@ WIP ################################
 
 
 DONE ###############################
+
+Die App soll umbenann werden von "Task Master" auf "Block Master"
 
 Die Texte in der Titelzeile sind nicht immer lesbar, je nachdem, wie breit die Spalten sind. 
 Reduziere die Anzeige für Wochentag und Monat/Jahre Stufenweise: 
