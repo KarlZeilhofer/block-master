@@ -49,6 +49,22 @@
 
 namespace {
 
+int placementOffsetMinutes(int durationMinutes)
+{
+    if (durationMinutes <= 0) {
+        return 0;
+    }
+    if (durationMinutes > 16 * 60) {
+        return 8 * 60;
+    }
+    return durationMinutes / 2;
+}
+
+QDateTime applyPlacementAnchor(const QDateTime &target, int durationMinutes)
+{
+    return target.addSecs(-placementOffsetMinutes(durationMinutes) * 60);
+}
+
 struct PlainTextTodoDefinition
 {
     QString title;
@@ -1196,7 +1212,8 @@ void MainWindow::handlePlacementConfirmed(const QDateTime &start)
         return;
     }
     QDateTime snapped = snapToQuarterHour(start);
-    pasteClipboardAt(snapped);
+    QDateTime anchored = applyPlacementAnchor(snapped, m_pendingPlacementDuration);
+    pasteClipboardAt(anchored);
     if (m_calendarView) {
         m_calendarView->cancelPlacementPreview();
     }
@@ -1208,7 +1225,9 @@ void MainWindow::handleHoveredDateTime(const QDateTime &dt)
 {
     m_lastHoverDateTime = dt;
     if (m_pendingPlacement && m_calendarView) {
-        m_calendarView->updatePlacementPreview(snapToQuarterHour(dt));
+        const QDateTime snapped = snapToQuarterHour(dt);
+        const QDateTime anchored = applyPlacementAnchor(snapped, m_pendingPlacementDuration);
+        m_calendarView->updatePlacementPreview(anchored);
     }
     statusBar()->showMessage(tr("Cursor: %1").arg(dt.toString(Qt::ISODate)), 1000);
 }
@@ -1382,7 +1401,8 @@ void MainWindow::pasteClipboard()
     m_pendingPlacement = true;
     QDateTime target = m_lastHoverDateTime.isValid() ? m_lastHoverDateTime : QDateTime(m_currentDate, QTime::currentTime());
     target = snapToQuarterHour(target);
-    m_calendarView->beginPlacementPreview(m_pendingPlacementDuration, m_pendingPlacementLabel, target);
+    QDateTime anchored = applyPlacementAnchor(target, m_pendingPlacementDuration);
+    m_calendarView->beginPlacementPreview(m_pendingPlacementDuration, m_pendingPlacementLabel, anchored);
     statusBar()->showMessage(tr("Klick zum Einfügen – Esc bricht ab"), 4000);
 }
 

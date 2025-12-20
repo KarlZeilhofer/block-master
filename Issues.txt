@@ -48,6 +48,9 @@ Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position veränder
 
 WIP ################################
 
+Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht an der oberen Kante. 
+Außer der Event dauert länger als 16h, dann soll er bei Stunde 8 anhaften. 
+Im Ghost-Objekt soll die Startuhrzeit Fett und optimal groß dargestellt werden, wenn es im Kalender platziert wird. 
 
 DONE ###############################
 

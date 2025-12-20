@@ -39,6 +39,8 @@ constexpr int SnapIntervalMinutes = 15;
 const char *EventMimeType = "application/x-calendar-event";
 constexpr double HandleHoverRange = 12.0;
 constexpr double EventCornerRadius = 8.0;
+constexpr int LargePlacementThresholdMinutes = 16 * 60;
+constexpr int LargePlacementOffsetMinutes = 8 * 60;
 const QStringList UltraShortMonths = {
     QStringLiteral("Jr"),
     QStringLiteral("Fb"),
@@ -53,6 +55,17 @@ const QStringList UltraShortMonths = {
     QStringLiteral("Nv"),
     QStringLiteral("Dz")
 };
+
+int placementOffsetMinutes(int durationMinutes)
+{
+    if (durationMinutes <= 0) {
+        return 0;
+    }
+    if (durationMinutes > LargePlacementThresholdMinutes) {
+        return LargePlacementOffsetMinutes;
+    }
+    return durationMinutes / 2;
+}
 
 QString cleanMonthToken(const QString &token)
 {
@@ -551,10 +564,38 @@ void CalendarView::paintEvent(QPaintEvent *event)
             QPainterPath path = segmentPath(rect, segment.clipTop, segment.clipBottom);
             painter.drawPath(path);
             if (!labelDrawn) {
+                QFont original = painter.font();
                 painter.setPen(Qt::white);
-                painter.drawText(rect.adjusted(4, 2, -4, -2),
+                QTextOption titleOpt(Qt::AlignLeft | Qt::AlignTop);
+                titleOpt.setWrapMode(QTextOption::NoWrap);
+                painter.drawText(QRectF(rect.left() + 4, rect.top() + 2, rect.width() - 8, rect.height() * 0.2),
+                                 m_dropPreviewText,
+                                 titleOpt);
+
+                QFont startFont = original;
+                startFont.setBold(true);
+                startFont.setPointSizeF(startFont.pointSizeF() * 1.2);
+                painter.setFont(startFont);
+                painter.setPen(Qt::black);
+                painter.drawText(QRectF(rect.left() + 4,
+                                        rect.top() + rect.height() * 0.22,
+                                        rect.width() - 8,
+                                        rect.height() * 0.25),
                                  Qt::AlignLeft | Qt::AlignTop,
-                                 m_dropPreviewText);
+                                 segment.segmentStart.time().toString(QStringLiteral("hh:mm")));
+
+                QFont dateFont = original;
+                dateFont.setBold(true);
+                dateFont.setPointSizeF(dateFont.pointSizeF() * 1.3);
+                painter.setFont(dateFont);
+                const QString dayText = QLocale().toString(segment.segmentStart.date(), QStringLiteral("dddd d."));
+                painter.drawText(QRectF(rect.left() + 4,
+                                        rect.top() + rect.height() * 0.5,
+                                        rect.width() - 8,
+                                        rect.height() * 0.35),
+                                 Qt::AlignLeft | Qt::AlignVCenter,
+                                 dayText);
+                painter.setFont(original);
                 labelDrawn = true;
             }
         }
@@ -830,6 +871,7 @@ void CalendarView::dragMoveEvent(QDragMoveEvent *event)
         }
         QDateTime dateTime = snapDateTime(dateTimeOpt.value());
         const int durationMinutes = entry->durationMinutes > 0 ? entry->durationMinutes : 60;
+        dateTime = dateTime.addSecs(-placementOffsetMinutes(durationMinutes) * 60);
         const QString label = entry->title.isEmpty() ? tr("Neuer Termin") : entry->title;
         updateDropPreview(dateTime, durationMinutes, label);
         event->acceptProposedAction();
@@ -888,6 +930,8 @@ void CalendarView::dropEvent(QDropEvent *event)
             return;
         }
         QDateTime dateTime = snapDateTime(dateTimeOpt.value());
+        const int durationMinutes = entry->durationMinutes > 0 ? entry->durationMinutes : 60;
+        dateTime = dateTime.addSecs(-placementOffsetMinutes(durationMinutes) * 60);
         emit todoDropped(entry->id, dateTime);
         m_allowNewEventCreation = false;
         event->setDropAction(Qt::MoveAction);
