@@ -1,6 +1,7 @@
 #include "calendar/ui/widgets/TodoListView.hpp"
 
 #include <QDragEnterEvent>
+#include <QDragLeaveEvent>
 #include <QDropEvent>
 #include <QMimeData>
 #include <QPainter>
@@ -33,18 +34,22 @@ data::TodoStatus TodoListView::targetStatus() const
 void TodoListView::dragEnterEvent(QDragEnterEvent *event)
 {
     if (acceptTodoMime(event->mimeData())) {
+        showGhostPreview(labelForMime(event->mimeData()));
         event->acceptProposedAction();
         return;
     }
+    clearGhostPreview();
     QListView::dragEnterEvent(event);
 }
 
 void TodoListView::dragMoveEvent(QDragMoveEvent *event)
 {
     if (acceptTodoMime(event->mimeData())) {
+        showGhostPreview(labelForMime(event->mimeData()));
         event->acceptProposedAction();
         return;
     }
+    clearGhostPreview();
     QListView::dragMoveEvent(event);
 }
 
@@ -60,6 +65,12 @@ void TodoListView::dropEvent(QDropEvent *event)
     }
     event->acceptProposedAction();
     clearGhostPreview();
+}
+
+void TodoListView::dragLeaveEvent(QDragLeaveEvent *event)
+{
+    clearGhostPreview();
+    QListView::dragLeaveEvent(event);
 }
 
 void TodoListView::paintEvent(QPaintEvent *event)
@@ -129,6 +140,38 @@ QList<QUuid> TodoListView::decodeTodoIds(const QMimeData *mime) const
         }
     }
     return ids;
+}
+
+QString TodoListView::labelForMime(const QMimeData *mime) const
+{
+    if (!mime || !mime->hasFormat(TodoMimeType)) {
+        return tr("TODOs verschieben");
+    }
+    const auto entries = decodeTodoMime(mime->data(TodoMimeType));
+    if (entries.isEmpty()) {
+        return tr("TODOs verschieben");
+    }
+    if (entries.size() > 1) {
+        return tr("%1 TODOs").arg(entries.size());
+    }
+    const auto &entry = entries.first();
+    QString label = entry.title.isEmpty() ? tr("(Ohne Titel)") : entry.title;
+    if (entry.durationMinutes > 0) {
+        const int hours = entry.durationMinutes / 60;
+        const int minutes = entry.durationMinutes % 60;
+        QString durationText;
+        if (hours > 0 && minutes > 0) {
+            durationText = tr("%1h %2m").arg(hours).arg(minutes);
+        } else if (hours > 0) {
+            durationText = tr("%1h").arg(hours);
+        } else if (minutes > 0) {
+            durationText = tr("%1m").arg(minutes);
+        }
+        if (!durationText.isEmpty()) {
+            label += tr(" (%1)").arg(durationText);
+        }
+    }
+    return label;
 }
 
 } // namespace ui

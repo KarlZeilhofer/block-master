@@ -26,6 +26,7 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void dragLeaveEvent(QDragLeaveEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
 
 public:
@@ -35,6 +36,7 @@ public:
 private:
     bool acceptTodoMime(const QMimeData *mime) const;
     QList<QUuid> decodeTodoIds(const QMimeData *mime) const;
+    QString labelForMime(const QMimeData *mime) const;
 
     data::TodoStatus m_targetStatus = data::TodoStatus::Pending;
     bool m_showGhostPreview = false;
