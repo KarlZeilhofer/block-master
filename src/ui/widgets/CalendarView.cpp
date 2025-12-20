@@ -22,6 +22,8 @@
 #include <QCursor>
 #include <algorithm>
 #include <map>
+#include <QToolTip>
+#include <QHelpEvent>
 
 #include "calendar/ui/mime/TodoMime.hpp"
 
@@ -36,6 +38,76 @@ constexpr int SnapIntervalMinutes = 15;
 const char *EventMimeType = "application/x-calendar-event";
 constexpr double HandleHoverRange = 12.0;
 constexpr double EventCornerRadius = 8.0;
+const QStringList UltraShortMonths = {
+    QStringLiteral("Jr"),
+    QStringLiteral("Fb"),
+    QStringLiteral("Mz"),
+    QStringLiteral("Ap"),
+    QStringLiteral("Ma"),
+    QStringLiteral("Jn"),
+    QStringLiteral("Jl"),
+    QStringLiteral("Ag"),
+    QStringLiteral("Sp"),
+    QStringLiteral("Ok"),
+    QStringLiteral("Nv"),
+    QStringLiteral("Dz")
+};
+
+QString cleanMonthToken(const QString &token)
+{
+    QString result = token;
+    return result.replace(QLatin1Char('.'), QString());
+}
+
+QString monthUltraShort(int month)
+{
+    if (month >= 1 && month <= UltraShortMonths.size()) {
+        return UltraShortMonths.at(month - 1);
+    }
+    return QStringLiteral("??");
+}
+
+QString chooseLabel(const QStringList &variants, const QFontMetrics &metrics, double maxWidth)
+{
+    const int pixelWidth = qMax(0, static_cast<int>(std::floor(maxWidth)));
+    for (const auto &variant : variants) {
+        if (metrics.horizontalAdvance(variant) <= pixelWidth) {
+            return variant;
+        }
+    }
+    if (variants.isEmpty()) {
+        return {};
+    }
+    return metrics.elidedText(variants.last(), Qt::ElideRight, pixelWidth);
+}
+
+QString weekdayForWidth(const QDate &date, const QFontMetrics &metrics, double width)
+{
+    const QString weekday = QLocale().toString(date, QStringLiteral("dddd"));
+    QStringList variants;
+    variants << weekday;
+    const QString four = weekday.left(4);
+    if (!variants.contains(four)) {
+        variants << four;
+    }
+    const QString two = weekday.left(2);
+    if (!variants.contains(two)) {
+        variants << two;
+    }
+    return chooseLabel(variants, metrics, width);
+}
+
+QString monthYearForWidth(const QDate &date, const QFontMetrics &metrics, double width)
+{
+    const QString longForm = QLocale().toString(date, QStringLiteral("MMMM yyyy"));
+    QString shortMonth = cleanMonthToken(QLocale().toString(date, QStringLiteral("MMM")));
+    const QString medium = QStringLiteral("%1 %2").arg(shortMonth, date.toString(QStringLiteral("yy")));
+    const QString compact = QStringLiteral("%1%2").arg(monthUltraShort(date.month()),
+                                                      date.toString(QStringLiteral("yy")));
+    QStringList variants;
+    variants << longForm << medium << compact;
+    return chooseLabel(variants, metrics, width);
+}
 } // namespace
 
 CalendarView::CalendarView(QWidget *parent)
@@ -92,6 +164,21 @@ void CalendarView::zoomTime(double factor)
     viewport()->update();
 }
 
+bool CalendarView::showMonthBand() const
+{
+    return m_dayWidth < 75.0;
+}
+
+double CalendarView::monthBandHeight() const
+{
+    return showMonthBand() ? m_headerHeight : 0.0;
+}
+
+double CalendarView::totalHeaderHeight() const
+{
+    return m_headerHeight + monthBandHeight();
+}
+
 void CalendarView::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
@@ -100,20 +187,42 @@ void CalendarView::paintEvent(QPaintEvent *event)
 
     const double yOffset = verticalScrollBar()->value();
     const double bodyHeight = m_hourHeight * 24.0;
-    const double bodyOriginY = m_headerHeight - yOffset;
+    const double monthBandHeight = this->monthBandHeight();
+    const double totalHeaderHeight = this->totalHeaderHeight();
+    const double bodyOriginY = totalHeaderHeight - yOffset;
     const double totalWidth = m_timeAxisWidth + m_dayWidth * m_dayCount;
 
     // Header background (sticky)
-    painter.fillRect(QRectF(0, 0, viewport()->width(), m_headerHeight), palette().alternateBase());
+    painter.fillRect(QRectF(0, 0, viewport()->width(), totalHeaderHeight), palette().alternateBase());
     painter.setPen(palette().dark().color());
-    painter.drawLine(QPointF(0, m_headerHeight - 0.5), QPointF(viewport()->width(), m_headerHeight - 0.5));
+    painter.drawLine(QPointF(0, totalHeaderHeight - 0.5), QPointF(viewport()->width(), totalHeaderHeight - 0.5));
+
+    const QFont originalFont = painter.font();
+    if (showMonthBand()) {
+        QFont monthFont = originalFont;
+        monthFont.setBold(true);
+        painter.setFont(monthFont);
+        for (int day = 0; day < m_dayCount;) {
+            const QDate date = m_startDate.addDays(day);
+            int span = 1;
+            while (day + span < m_dayCount && m_startDate.addDays(day + span).month() == date.month()) {
+                ++span;
+            }
+            const double startX = m_timeAxisWidth + day * m_dayWidth;
+            const double spanWidth = span * m_dayWidth;
+            QRectF monthRect(startX, 0.0, spanWidth, monthBandHeight);
+            painter.drawText(monthRect, Qt::AlignCenter | Qt::AlignVCenter, QLocale().toString(date, QStringLiteral("MMMM yyyy")));
+            day += span;
+        }
+        painter.setFont(originalFont);
+    }
 
     std::map<double, QColor> highlightLines;
     const QDate today = QDate::currentDate();
 
     for (int day = 0; day < m_dayCount; ++day) {
         const double x = m_timeAxisWidth + day * m_dayWidth;
-        QRectF headerRect(x, 0, m_dayWidth, m_headerHeight);
+        QRectF headerRect(x, monthBandHeight, m_dayWidth, m_headerHeight);
         const QDate date = m_startDate.addDays(day);
         const bool isSunday = date.dayOfWeek() == 7;
         const bool isToday = date == today;
@@ -129,12 +238,10 @@ void CalendarView::paintEvent(QPaintEvent *event)
         painter.setPen(textColor);
 
         const QString dayText = QLocale().toString(date, QStringLiteral("dd"));
-        const QString weekdayText = QLocale().toString(date, QStringLiteral("dddd"));
-        const QString monthYearText = QLocale().toString(date, QStringLiteral("MMMM yyyy"));
 
         const double padding = 6.0;
         QRectF contentRect = headerRect.adjusted(padding, padding / 2, -padding, -padding / 2);
-        const double dayBlockWidth = qMax(40.0, contentRect.width() * 0.35);
+        const double dayBlockWidth = qBound(24.0, contentRect.width() * 0.25, 72.0);
         QRectF dayRect(contentRect.left(), contentRect.top(), dayBlockWidth, contentRect.height());
         QRectF infoRect(dayRect.right() + padding, contentRect.top(), contentRect.width() - dayBlockWidth - padding, contentRect.height());
 
@@ -148,10 +255,13 @@ void CalendarView::paintEvent(QPaintEvent *event)
         QFont infoFont = baseFont;
         infoFont.setBold(false);
         painter.setFont(infoFont);
+        QFontMetrics infoMetrics(infoFont);
         QRectF weekdayRect(infoRect.left(), infoRect.top(), infoRect.width(), infoRect.height() / 2);
         QRectF monthRect(infoRect.left(), infoRect.center().y(), infoRect.width(), infoRect.height() / 2);
-        painter.drawText(weekdayRect, Qt::AlignLeft | Qt::AlignVCenter, weekdayText);
-        painter.drawText(monthRect, Qt::AlignLeft | Qt::AlignVCenter, monthYearText);
+        const QString weekdayDisplay = weekdayForWidth(date, infoMetrics, weekdayRect.width());
+        const QString monthDisplay = monthYearForWidth(date, infoMetrics, monthRect.width());
+        painter.drawText(weekdayRect, Qt::AlignLeft | Qt::AlignVCenter, weekdayDisplay);
+        painter.drawText(monthRect, Qt::AlignLeft | Qt::AlignVCenter, monthDisplay);
 
         if (isToday) {
             highlightLines[x] = QColor(0, 150, 0);
@@ -164,14 +274,14 @@ void CalendarView::paintEvent(QPaintEvent *event)
 
     painter.setPen(palette().dark().color());
 
-    const double clipHeight = qMax(0.0, static_cast<double>(viewport()->height()) - m_headerHeight);
+    const double clipHeight = qMax(0.0, static_cast<double>(viewport()->height()) - totalHeaderHeight);
     painter.save();
-    painter.setClipRect(QRectF(0, m_headerHeight, viewport()->width(), clipHeight));
+    painter.setClipRect(QRectF(0, totalHeaderHeight, viewport()->width(), clipHeight));
 
     painter.setPen(palette().mid().color());
     for (int hour = 0; hour <= 24; ++hour) {
         const double y = bodyOriginY + hour * m_hourHeight;
-        if (y < m_headerHeight - m_hourHeight || y > viewport()->height() + m_hourHeight) {
+        if (y < totalHeaderHeight - m_hourHeight || y > viewport()->height() + m_hourHeight) {
             continue;
         }
         painter.drawLine(QPointF(0, y), QPointF(totalWidth, y));
@@ -188,9 +298,9 @@ void CalendarView::paintEvent(QPaintEvent *event)
 
     painter.setRenderHint(QPainter::Antialiasing, true);
     const QRectF visibleRect(m_timeAxisWidth,
-                             m_headerHeight - m_hourHeight,
+                             totalHeaderHeight - m_hourHeight,
                              qMax(0.0, static_cast<double>(viewport()->width()) - m_timeAxisWidth),
-                             viewport()->height() - m_headerHeight + m_hourHeight * 2);
+                             viewport()->height() - totalHeaderHeight + m_hourHeight * 2);
     const auto segmentPath = [](const QRectF &rect, bool clipTop, bool clipBottom) {
         QPainterPath path;
         const double radius = qMin(EventCornerRadius, qMin(rect.width(), rect.height()) / 2.0);
@@ -348,6 +458,35 @@ void CalendarView::wheelEvent(QWheelEvent *event)
         return;
     }
     QAbstractScrollArea::wheelEvent(event);
+}
+
+bool CalendarView::viewportEvent(QEvent *event)
+{
+    if (event->type() == QEvent::ToolTip) {
+        auto *helpEvent = static_cast<QHelpEvent *>(event);
+        const QPoint pos = helpEvent->pos();
+        const double monthHeight = monthBandHeight();
+        const double totalHeight = totalHeaderHeight();
+        if (m_dayWidth > 0.0 && pos.x() >= m_timeAxisWidth) {
+            const int dayIndex = qBound(0, static_cast<int>((pos.x() - m_timeAxisWidth) / m_dayWidth), m_dayCount - 1);
+            if (pos.y() >= monthHeight && pos.y() <= totalHeight) {
+                const QDate date = m_startDate.addDays(dayIndex);
+                const QString tooltip = QLocale().toString(date, QLocale::LongFormat);
+                QToolTip::showText(helpEvent->globalPos(), tooltip, viewport());
+                return true;
+            }
+            if (showMonthBand() && pos.y() < monthHeight) {
+                const QDate date = m_startDate.addDays(dayIndex);
+                const QString tooltip = QLocale().toString(date, QStringLiteral("MMMM yyyy"));
+                QToolTip::showText(helpEvent->globalPos(), tooltip, viewport());
+                return true;
+            }
+        }
+        QToolTip::hideText();
+        event->ignore();
+        return true;
+    }
+    return QAbstractScrollArea::viewportEvent(event);
 }
 
 void CalendarView::mousePressEvent(QMouseEvent *event)
@@ -760,7 +899,7 @@ std::vector<CalendarView::EventSegment> CalendarView::segmentsForEvent(const dat
         QDateTime segmentEnd = event.end < dayEnd ? event.end : dayEnd;
         const double startMinutes = dayStart.secsTo(segmentStart) / 60.0;
         const double endMinutes = dayStart.secsTo(segmentEnd) / 60.0;
-        const double y = m_headerHeight + (startMinutes / 60.0) * m_hourHeight;
+        const double y = totalHeaderHeight() + (startMinutes / 60.0) * m_hourHeight;
         const double durationMinutes = qMax(0.0, endMinutes - startMinutes);
         const double height = qMax((durationMinutes / 60.0) * m_hourHeight, 20.0);
         const double x = m_timeAxisWidth + day * m_dayWidth + 6.0;
@@ -780,7 +919,8 @@ std::vector<CalendarView::EventSegment> CalendarView::segmentsForEvent(const dat
 void CalendarView::updateScrollBars()
 {
     const double bodyHeight = m_hourHeight * 24.0;
-    const int pageStep = qMax(1, static_cast<int>(viewport()->height() - m_headerHeight));
+    const double header = totalHeaderHeight();
+    const int pageStep = qMax(1, static_cast<int>(viewport()->height() - header));
     horizontalScrollBar()->setRange(0, 0);
     horizontalScrollBar()->setPageStep(viewport()->width());
     horizontalScrollBar()->setValue(0);
@@ -815,7 +955,7 @@ void CalendarView::emitHoverAt(const QPoint &pos)
         return;
     }
     const QPointF scenePos = QPointF(pos) + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
-    const double y = scenePos.y() - m_headerHeight;
+    const double y = scenePos.y() - totalHeaderHeight();
     if (y >= 0) {
         const double hours = y / m_hourHeight;
         const int hour = static_cast<int>(hours);
@@ -949,7 +1089,7 @@ std::optional<QDateTime> CalendarView::dateTimeAtScene(const QPointF &scenePos) 
     if (m_dayWidth <= 0.0) {
         return std::nullopt;
     }
-    const double y = scenePos.y() - m_headerHeight;
+    const double y = scenePos.y() - totalHeaderHeight();
     if (y < 0) {
         return std::nullopt;
     }

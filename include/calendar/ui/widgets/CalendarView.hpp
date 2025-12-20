@@ -55,6 +55,7 @@ protected:
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    bool viewportEvent(QEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -102,6 +103,9 @@ private:
     void updateNewEventDrag(const QPointF &scenePos);
     void finalizeNewEventDrag();
     void cancelNewEventDrag();
+    bool showMonthBand() const;
+    double monthBandHeight() const;
+    double totalHeaderHeight() const;
 
     QDate m_startDate;
     int m_dayCount = 5;
