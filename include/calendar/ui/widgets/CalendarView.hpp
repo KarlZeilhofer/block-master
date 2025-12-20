@@ -7,6 +7,7 @@
 #include <vector>
 #include <QString>
 #include <QPair>
+#include <QElapsedTimer>
 
 #include "calendar/data/Event.hpp"
 
@@ -19,6 +20,7 @@ class CalendarView : public QAbstractScrollArea
 
 public:
     explicit CalendarView(QWidget *parent = nullptr);
+    ~CalendarView() override;
 
     void setDateRange(const QDate &start, int days);
     void setEvents(std::vector<data::CalendarEvent> events);
@@ -52,6 +54,7 @@ protected:
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void dragLeaveEvent(QDragLeaveEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     QRectF eventRect(const data::CalendarEvent &event) const;
@@ -65,12 +68,17 @@ private:
     void endResize();
     std::optional<QDateTime> dateTimeAtScene(const QPointF &scenePos) const;
     const data::CalendarEvent *eventAt(const QPointF &scenePos) const;
-    void startEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes);
     void resetDragCandidate();
     void updateDropPreview(const QDateTime &start, int durationMinutes, const QString &label);
     void clearDropPreview();
     QPair<double, double> handleArea(const data::CalendarEvent &event, bool top) const;
     void recalculateDayWidth();
+    void maybeAutoScrollHorizontally(const QPoint &pos);
+    bool handleWheelInteraction(QWheelEvent *event);
+    void beginInternalEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes);
+    void updateInternalEventDrag(const QPointF &scenePos);
+    void finalizeInternalEventDrag(const QPointF &scenePos);
+    void cancelInternalEventDrag();
 
     QDate m_startDate;
     int m_dayCount = 5;
@@ -101,6 +109,13 @@ private:
     QUuid m_hoverTopHandleId;
     QUuid m_hoverBottomHandleId;
     double m_horizontalScrollRemainder = 0.0;
+    bool m_dragInteractionActive = false;
+    bool m_forwardingKeyEvent = false;
+    QElapsedTimer m_autoScrollTimer;
+    bool m_internalDragActive = false;
+    data::CalendarEvent m_internalDragSource;
+    int m_internalDragOffsetMinutes = 0;
+    int m_internalDragDurationMinutes = 0;
 };
 
 } // namespace ui

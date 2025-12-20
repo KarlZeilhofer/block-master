@@ -9,6 +9,7 @@
 #include <QDropEvent>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QKeyEvent>
 #include <QPainter>
 #include <QScrollBar>
 #include <QTime>
@@ -16,6 +17,8 @@
 #include <QtMath>
 #include <QIODevice>
 #include <QWheelEvent>
+#include <QCoreApplication>
+#include <QDebug>
 #include <algorithm>
 #include <map>
 
@@ -38,8 +41,18 @@ CalendarView::CalendarView(QWidget *parent)
     setMouseTracking(true);
     setAcceptDrops(true);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    if (qApp) {
+        qApp->installEventFilter(this);
+    }
     setDateRange(QDate::currentDate(), m_dayCount);
     updateScrollBars();
+}
+
+CalendarView::~CalendarView()
+{
+    if (qApp) {
+        qApp->removeEventFilter(this);
+    }
 }
 
 void CalendarView::setDateRange(const QDate &start, int days)
@@ -252,44 +265,8 @@ void CalendarView::resizeEvent(QResizeEvent *event)
 
 void CalendarView::wheelEvent(QWheelEvent *event)
 {
-    if (event->modifiers().testFlag(Qt::ControlModifier)) {
-        const int delta = event->angleDelta().y();
-        if (delta != 0) {
-            emit dayZoomRequested(delta > 0);
-        }
-        event->accept();
-        return;
-    }
-    if (event->modifiers().testFlag(Qt::ShiftModifier)) {
-        zoomTime(event->angleDelta().y() > 0 ? 1.1 : 0.9);
-        event->accept();
-        return;
-    }
-    const QPoint angle = event->angleDelta();
-    bool handled = false;
-    if (angle.x() != 0) {
-        m_horizontalScrollRemainder += static_cast<double>(angle.x()) / 120.0;
-        while (m_horizontalScrollRemainder >= 1.0) {
-            emit dayScrollRequested(-1);
-            m_horizontalScrollRemainder -= 1.0;
-            handled = true;
-        }
-        while (m_horizontalScrollRemainder <= -1.0) {
-            emit dayScrollRequested(1);
-            m_horizontalScrollRemainder += 1.0;
-            handled = true;
-        }
-    }
-    if (angle.y() != 0) {
-        const double steps = angle.y() / 120.0;
-        const double delta = steps * (m_hourHeight * 0.25); // 15 Minuten
-        auto *vbar = verticalScrollBar();
-        const int newValue = qBound(vbar->minimum(), vbar->value() - static_cast<int>(delta), vbar->maximum());
-        vbar->setValue(newValue);
-        handled = true;
-    }
-    if (handled) {
-        event->accept();
+    qDebug() << "[CalendarView] wheelEvent local" << event->angleDelta() << "modifiers" << event->modifiers();
+    if (handleWheelInteraction(event)) {
         return;
     }
     QAbstractScrollArea::wheelEvent(event);
@@ -374,18 +351,26 @@ void CalendarView::mouseMoveEvent(QMouseEvent *event)
         event->accept();
         return;
     }
+    const QPointF scenePos = QPointF(event->pos())
+        + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
     if ((event->buttons() & Qt::LeftButton) && !m_dragCandidateId.isNull()) {
         if ((event->pos() - m_pressPos).manhattanLength() >= QApplication::startDragDistance()) {
             auto it = std::find_if(m_events.begin(), m_events.end(), [this](const data::CalendarEvent &ev) {
                 return ev.id == m_dragCandidateId;
             });
             if (it != m_events.end()) {
-                startEventDrag(*it, m_dragPointerOffsetMinutes);
+                beginInternalEventDrag(*it, m_dragPointerOffsetMinutes);
+                updateInternalEventDrag(scenePos);
                 event->accept();
                 return;
             }
             resetDragCandidate();
         }
+    }
+    if (m_internalDragActive && (event->buttons() & Qt::LeftButton)) {
+        updateInternalEventDrag(scenePos);
+        event->accept();
+        return;
     }
     emitHoverAt(event->pos());
     QAbstractScrollArea::mouseMoveEvent(event);
@@ -398,12 +383,22 @@ void CalendarView::mouseReleaseEvent(QMouseEvent *event)
         event->accept();
         return;
     }
+    if (m_internalDragActive && event->button() == Qt::LeftButton) {
+        const QPointF scenePos = QPointF(event->pos())
+            + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+        finalizeInternalEventDrag(scenePos);
+        event->accept();
+        return;
+    }
     resetDragCandidate();
     QAbstractScrollArea::mouseReleaseEvent(event);
 }
 
 void CalendarView::dragEnterEvent(QDragEnterEvent *event)
 {
+    m_dragInteractionActive = true;
+    qDebug() << "[CalendarView] dragEnter -> activate drag interaction";
+    m_autoScrollTimer.invalidate();
     cancelPlacementPreview();
     const auto *mime = event->mimeData();
     if (mime->hasFormat(TodoMimeType) || mime->hasFormat(EventMimeType)) {
@@ -415,6 +410,8 @@ void CalendarView::dragEnterEvent(QDragEnterEvent *event)
 
 void CalendarView::dragMoveEvent(QDragMoveEvent *event)
 {
+    qDebug() << "[CalendarView] dragMove at" << event->pos();
+    maybeAutoScrollHorizontally(event->pos());
     const auto *mime = event->mimeData();
     const QPointF scenePos = QPointF(event->pos())
         + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
@@ -476,6 +473,9 @@ void CalendarView::dragMoveEvent(QDragMoveEvent *event)
 
 void CalendarView::dropEvent(QDropEvent *event)
 {
+    m_dragInteractionActive = false;
+    qDebug() << "[CalendarView] dropEvent -> deactivate drag interaction";
+    m_autoScrollTimer.invalidate();
     const auto *mime = event->mimeData();
     const QPointF scenePos = QPointF(event->pos())
         + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
@@ -533,8 +533,56 @@ void CalendarView::dropEvent(QDropEvent *event)
 
 void CalendarView::dragLeaveEvent(QDragLeaveEvent *event)
 {
+    m_autoScrollTimer.invalidate();
+    m_dragInteractionActive = false;
+    qDebug() << "[CalendarView] dragLeave -> deactivate drag interaction";
     Q_UNUSED(event);
     clearDropPreview();
+}
+
+bool CalendarView::eventFilter(QObject *watched, QEvent *event)
+{
+    Q_UNUSED(watched);
+    if (!m_dragInteractionActive) {
+        return QObject::eventFilter(watched, event);
+    }
+    switch (event->type()) {
+    case QEvent::Wheel: {
+        auto *wheel = static_cast<QWheelEvent *>(event);
+        qDebug() << "[CalendarView] eventFilter wheel global" << wheel->angleDelta()
+                 << "modifiers" << wheel->modifiers();
+        if (handleWheelInteraction(wheel)) {
+            return true;
+        }
+        break;
+    }
+    case QEvent::KeyPress:
+    case QEvent::KeyRelease: {
+        if (m_forwardingKeyEvent) {
+            break;
+        }
+        auto *key = static_cast<QKeyEvent *>(event);
+        QWidget *target = window();
+        if (!target) {
+            target = this;
+        }
+        qDebug() << "[CalendarView] eventFilter key" << (event->type() == QEvent::KeyPress ? "press" : "release")
+                 << key->key() << "modifiers" << key->modifiers();
+        QKeyEvent clone(event->type(),
+                        key->key(),
+                        key->modifiers(),
+                        key->text(),
+                        key->isAutoRepeat(),
+                        key->count());
+        m_forwardingKeyEvent = true;
+        QCoreApplication::sendEvent(target, &clone);
+        m_forwardingKeyEvent = false;
+        return clone.isAccepted();
+    }
+    default:
+        break;
+    }
+    return QObject::eventFilter(watched, event);
 }
 
 void CalendarView::beginPlacementPreview(int durationMinutes, const QString &label, const QDateTime &initialStart)
@@ -756,17 +804,68 @@ const data::CalendarEvent *CalendarView::eventAt(const QPointF &scenePos) const
     return nullptr;
 }
 
-void CalendarView::startEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes)
+void CalendarView::beginInternalEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes)
 {
-    auto *drag = new QDrag(this);
-    auto *mime = new QMimeData();
-    QByteArray payload;
-    QDataStream stream(&payload, QIODevice::WriteOnly);
-    const int offset = snapIntervalMinutes(pointerOffsetMinutes);
-    stream << event.id << offset;
-    mime->setData(EventMimeType, payload);
-    drag->setMimeData(mime);
-    drag->exec(Qt::CopyAction | Qt::MoveAction);
+    m_internalDragActive = true;
+    m_internalDragSource = event;
+    m_internalDragOffsetMinutes = pointerOffsetMinutes;
+    m_internalDragDurationMinutes = qMax(15, static_cast<int>(event.start.secsTo(event.end) / 60));
+    m_dragInteractionActive = true;
+    qDebug() << "[CalendarView] beginInternalEventDrag" << event.title;
+}
+
+void CalendarView::updateInternalEventDrag(const QPointF &scenePos)
+{
+    if (!m_internalDragActive) {
+        return;
+    }
+    auto dateTimeOpt = dateTimeAtScene(scenePos);
+    if (!dateTimeOpt) {
+        clearDropPreview();
+        return;
+    }
+    QDateTime target = dateTimeOpt.value();
+    int minutes = target.time().hour() * 60 + target.time().minute();
+    minutes = snapMinutes(minutes);
+    target.setTime(QTime(minutes / 60, minutes % 60));
+    target = target.addSecs(-m_internalDragOffsetMinutes * 60);
+    minutes = target.time().hour() * 60 + target.time().minute();
+    minutes = snapMinutes(minutes);
+    target.setTime(QTime(minutes / 60, minutes % 60));
+    updateDropPreview(target, m_internalDragDurationMinutes, m_internalDragSource.title);
+}
+
+void CalendarView::finalizeInternalEventDrag(const QPointF &scenePos)
+{
+    if (!m_internalDragActive) {
+        return;
+    }
+    auto dateTimeOpt = dateTimeAtScene(scenePos);
+    if (dateTimeOpt) {
+        QDateTime target = dateTimeOpt.value();
+        int minutes = target.time().hour() * 60 + target.time().minute();
+        minutes = snapMinutes(minutes);
+        target.setTime(QTime(minutes / 60, minutes % 60));
+        target = target.addSecs(-m_internalDragOffsetMinutes * 60);
+        minutes = target.time().hour() * 60 + target.time().minute();
+        minutes = snapMinutes(minutes);
+        target.setTime(QTime(minutes / 60, minutes % 60));
+        bool copy = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
+        emit eventDropRequested(m_internalDragSource.id, target, copy);
+    }
+    cancelInternalEventDrag();
+}
+
+void CalendarView::cancelInternalEventDrag()
+{
+    if (!m_internalDragActive) {
+        return;
+    }
+    m_internalDragActive = false;
+    m_internalDragDurationMinutes = 0;
+    m_dragInteractionActive = false;
+    clearDropPreview();
+    qDebug() << "[CalendarView] cancelInternalEventDrag";
     resetDragCandidate();
 }
 
@@ -860,6 +959,74 @@ void CalendarView::recalculateDayWidth()
         m_dayWidth = newWidth;
         viewport()->update();
     }
+}
+
+void CalendarView::maybeAutoScrollHorizontally(const QPoint &pos)
+{
+    constexpr int Margin = 40;
+    constexpr int IntervalMs = 120;
+    if (!m_autoScrollTimer.isValid()) {
+        m_autoScrollTimer.start();
+    }
+    if (m_autoScrollTimer.elapsed() < IntervalMs) {
+        return;
+    }
+    if (pos.x() <= Margin) {
+        emit dayScrollRequested(-1);
+        m_autoScrollTimer.restart();
+    } else if (pos.x() >= viewport()->width() - Margin) {
+        emit dayScrollRequested(1);
+        m_autoScrollTimer.restart();
+    }
+}
+
+bool CalendarView::handleWheelInteraction(QWheelEvent *event)
+{
+    qDebug() << "[CalendarView] handleWheelInteraction delta" << event->angleDelta()
+             << "modifiers" << event->modifiers();
+    if (event->modifiers().testFlag(Qt::ControlModifier)) {
+        const int delta = event->angleDelta().y();
+        if (delta != 0) {
+            emit dayZoomRequested(delta > 0);
+        }
+        event->accept();
+        return true;
+    }
+    if (event->modifiers().testFlag(Qt::ShiftModifier)) {
+        zoomTime(event->angleDelta().y() > 0 ? 1.1 : 0.9);
+        event->accept();
+        return true;
+    }
+    const QPoint angle = event->angleDelta();
+    bool handled = false;
+    if (angle.x() != 0) {
+        qDebug() << "[CalendarView] horizontal wheel step" << angle.x();
+        m_horizontalScrollRemainder += static_cast<double>(angle.x()) / 120.0;
+        while (m_horizontalScrollRemainder >= 1.0) {
+            emit dayScrollRequested(-1);
+            m_horizontalScrollRemainder -= 1.0;
+            handled = true;
+        }
+        while (m_horizontalScrollRemainder <= -1.0) {
+            emit dayScrollRequested(1);
+            m_horizontalScrollRemainder += 1.0;
+            handled = true;
+        }
+    }
+    if (angle.y() != 0) {
+        qDebug() << "[CalendarView] vertical wheel step" << angle.y();
+        const double steps = angle.y() / 120.0;
+        const double delta = steps * (m_hourHeight * 0.25); // 15 Minuten
+        auto *vbar = verticalScrollBar();
+        const int newValue = qBound(vbar->minimum(), vbar->value() - static_cast<int>(delta), vbar->maximum());
+        vbar->setValue(newValue);
+        handled = true;
+    }
+    if (handled) {
+        event->accept();
+        return true;
+    }
+    return false;
 }
 
 } // namespace ui
