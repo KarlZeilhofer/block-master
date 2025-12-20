@@ -200,6 +200,7 @@ void CalendarView::paintEvent(QPaintEvent *event)
         if (clipBottom) {
             path.addRect(QRectF(rect.left(), rect.bottom() - radius, rect.width(), radius));
         }
+        path.setFillRule(Qt::WindingFill);
         return path;
     };
 
@@ -248,19 +249,29 @@ void CalendarView::paintEvent(QPaintEvent *event)
             painter.drawPath(path);
 
             painter.setPen(Qt::white);
-            const QString block = infoDrawn ? eventData.title : titleBlock;
+            QString block;
+            if (segment.clipTop) {
+                block = tr("... %1").arg(eventData.title);
+            } else if (!infoDrawn) {
+                block = titleBlock;
+            } else {
+                block = eventData.title;
+            }
             QRectF textRect = rect.adjusted(4, 2, -4, -rect.height() / 2);
             painter.drawText(textRect,
                              Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop,
                              block);
             infoDrawn = true;
 
+            const QString endLabel = segment.clipBottom
+                ? QStringLiteral("...")
+                : segment.segmentEnd.time().toString(QStringLiteral("hh:mm"));
             painter.drawText(QRectF(rect.left() + 4,
                                     rect.bottom() - 20,
                                     rect.width() - 8,
                                     18),
                              Qt::AlignLeft | Qt::AlignVCenter,
-                             segment.segmentEnd.time().toString(QStringLiteral("hh:mm")));
+                             endLabel);
         }
 
         painter.setPen(Qt::NoPen);
