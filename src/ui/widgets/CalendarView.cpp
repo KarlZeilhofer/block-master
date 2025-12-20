@@ -11,6 +11,7 @@
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QScrollBar>
 #include <QTime>
 #include <QLocale>
@@ -33,6 +34,7 @@ constexpr int SnapIntervalMinutes = 15;
 const char *TodoMimeType = "application/x-calendar-todo";
 const char *EventMimeType = "application/x-calendar-event";
 constexpr double HandleHoverRange = 12.0;
+constexpr double EventCornerRadius = 8.0;
 } // namespace
 
 CalendarView::CalendarView(QWidget *parent)
@@ -188,10 +190,22 @@ void CalendarView::paintEvent(QPaintEvent *event)
                              m_headerHeight - m_hourHeight,
                              qMax(0.0, static_cast<double>(viewport()->width()) - m_timeAxisWidth),
                              viewport()->height() - m_headerHeight + m_hourHeight * 2);
+    const auto segmentPath = [](const QRectF &rect, bool clipTop, bool clipBottom) {
+        QPainterPath path;
+        const double radius = qMin(EventCornerRadius, qMin(rect.width(), rect.height()) / 2.0);
+        path.addRoundedRect(rect, radius, radius);
+        if (clipTop) {
+            path.addRect(QRectF(rect.left(), rect.top(), rect.width(), radius));
+        }
+        if (clipBottom) {
+            path.addRect(QRectF(rect.left(), rect.bottom() - radius, rect.width(), radius));
+        }
+        return path;
+    };
+
     for (const auto &eventData : m_events) {
-        QRectF rect = eventRect(eventData);
-        rect.translate(0, -yOffset);
-        if (!rect.intersects(visibleRect)) {
+        const auto segments = segmentsForEvent(eventData);
+        if (segments.empty()) {
             continue;
         }
 
@@ -199,33 +213,6 @@ void CalendarView::paintEvent(QPaintEvent *event)
         if (eventData.id == m_selectedEvent) {
             color = color.darker(125);
         }
-        painter.setBrush(color);
-        painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(rect, 4, 4);
-
-        const double handleHeight = 6.0;
-        QColor handleColor = palette().highlight().color().lighter(130);
-        handleColor.setAlpha(160);
-        painter.setPen(Qt::NoPen);
-        if (eventData.id == m_hoverTopHandleId) {
-            QRectF topHandle(rect.x() + 6, rect.y() - handleHeight / 2, rect.width() - 12, handleHeight);
-            painter.setBrush(handleColor);
-            painter.drawRoundedRect(topHandle, 3, 3);
-            painter.setPen(QPen(palette().base().color(), 1));
-            painter.drawLine(QPointF(topHandle.left() + 4, topHandle.center().y()),
-                             QPointF(topHandle.right() - 4, topHandle.center().y()));
-            painter.setPen(Qt::NoPen);
-        }
-        if (eventData.id == m_hoverBottomHandleId) {
-            QRectF bottomHandle(rect.x() + 6, rect.bottom() - handleHeight / 2, rect.width() - 12, handleHeight);
-            painter.setBrush(handleColor);
-            painter.drawRoundedRect(bottomHandle, 3, 3);
-            painter.setPen(QPen(palette().base().color(), 1));
-            painter.drawLine(QPointF(bottomHandle.left() + 4, bottomHandle.center().y()),
-                             QPointF(bottomHandle.right() - 4, bottomHandle.center().y()));
-            painter.setPen(Qt::NoPen);
-        }
-
         const qint64 durationMinutes = qMax<qint64>(5, eventData.start.secsTo(eventData.end) / 60);
         const int hours = static_cast<int>(durationMinutes / 60);
         const int minutes = static_cast<int>(durationMinutes % 60);
@@ -237,34 +224,92 @@ void CalendarView::paintEvent(QPaintEvent *event)
         } else {
             durationText = tr("%1m").arg(minutes);
         }
-        painter.setPen(Qt::white);
         const QString startInfo = tr("%1 (%2)")
                                       .arg(eventData.start.time().toString(QStringLiteral("hh:mm")),
                                            durationText);
-        QRectF textRect = rect.adjusted(4, 2, -4, -rect.height() / 2);
-        painter.drawText(textRect,
-                         Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop,
-                         tr("%1\n%2")
-                             .arg(eventData.title,
-                                  startInfo));
+        const QString titleBlock = tr("%1\n%2").arg(eventData.title, startInfo);
+        bool infoDrawn = false;
 
-        painter.drawText(QRectF(rect.left() + 4,
-                                rect.bottom() - 20,
-                                rect.width() - 8,
-                                18),
-                         Qt::AlignLeft | Qt::AlignVCenter,
-                         eventData.end.time().toString(QStringLiteral("hh:mm")));
+        const double handleHeight = 6.0;
+        QColor handleColor = palette().highlight().color().lighter(130);
+        handleColor.setAlpha(160);
+
+        QRectF topRect = segments.front().rect;
+        QRectF bottomRect = segments.back().rect;
+
+        for (const auto &segment : segments) {
+            QRectF rect = segment.rect.translated(0, -yOffset);
+            if (!rect.intersects(visibleRect)) {
+                continue;
+            }
+            QPainterPath path = segmentPath(rect, segment.clipTop, segment.clipBottom);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(color);
+            painter.drawPath(path);
+
+            painter.setPen(Qt::white);
+            const QString block = infoDrawn ? eventData.title : titleBlock;
+            QRectF textRect = rect.adjusted(4, 2, -4, -rect.height() / 2);
+            painter.drawText(textRect,
+                             Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop,
+                             block);
+            infoDrawn = true;
+
+            painter.drawText(QRectF(rect.left() + 4,
+                                    rect.bottom() - 20,
+                                    rect.width() - 8,
+                                    18),
+                             Qt::AlignLeft | Qt::AlignVCenter,
+                             segment.segmentEnd.time().toString(QStringLiteral("hh:mm")));
+        }
+
+        painter.setPen(Qt::NoPen);
+        if (eventData.id == m_hoverTopHandleId) {
+            QRectF translatedTop = topRect.translated(0, -yOffset);
+            if (translatedTop.intersects(visibleRect)) {
+                QRectF topHandle(translatedTop.x() + 6, translatedTop.y() - handleHeight / 2, translatedTop.width() - 12, handleHeight);
+                painter.setBrush(handleColor);
+                painter.drawRoundedRect(topHandle, 3, 3);
+                painter.setPen(QPen(palette().base().color(), 1));
+                painter.drawLine(QPointF(topHandle.left() + 4, topHandle.center().y()),
+                                 QPointF(topHandle.right() - 4, topHandle.center().y()));
+                painter.setPen(Qt::NoPen);
+            }
+        }
+        if (eventData.id == m_hoverBottomHandleId) {
+            QRectF translatedBottom = bottomRect.translated(0, -yOffset);
+            if (translatedBottom.intersects(visibleRect)) {
+                QRectF bottomHandle(translatedBottom.x() + 6, translatedBottom.bottom() - handleHeight / 2, translatedBottom.width() - 12, handleHeight);
+                painter.setBrush(handleColor);
+                painter.drawRoundedRect(bottomHandle, 3, 3);
+                painter.setPen(QPen(palette().base().color(), 1));
+                painter.drawLine(QPointF(bottomHandle.left() + 4, bottomHandle.center().y()),
+                                 QPointF(bottomHandle.right() - 4, bottomHandle.center().y()));
+                painter.setPen(Qt::NoPen);
+            }
+        }
     }
 
-    if (m_showDropPreview && m_dropPreviewRect.isValid()) {
-        QRectF previewRect = m_dropPreviewRect.translated(0, -yOffset);
-        painter.setBrush(QColor(100, 149, 237, 120));
-        painter.setPen(QPen(palette().highlight().color(), 1, Qt::DashLine));
-        painter.drawRoundedRect(previewRect, 4, 4);
-        painter.setPen(Qt::white);
-        painter.drawText(previewRect.adjusted(4, 2, -4, -2),
-                         Qt::AlignLeft | Qt::AlignTop,
-                         m_dropPreviewText);
+    if (m_showDropPreview) {
+        const auto segments = segmentsForEvent(m_dropPreviewEvent);
+        bool labelDrawn = false;
+        for (const auto &segment : segments) {
+            QRectF rect = segment.rect.translated(0, -yOffset);
+            if (!rect.intersects(visibleRect)) {
+                continue;
+            }
+            painter.setBrush(QColor(100, 149, 237, 120));
+            painter.setPen(QPen(palette().highlight().color(), 1, Qt::DashLine));
+            QPainterPath path = segmentPath(rect, segment.clipTop, segment.clipBottom);
+            painter.drawPath(path);
+            if (!labelDrawn) {
+                painter.setPen(Qt::white);
+                painter.drawText(rect.adjusted(4, 2, -4, -2),
+                                 Qt::AlignLeft | Qt::AlignTop,
+                                 m_dropPreviewText);
+                labelDrawn = true;
+            }
+        }
     }
 
     painter.restore();
@@ -300,9 +345,7 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
     if (m_externalPlacementMode && event->button() == Qt::LeftButton) {
         auto dateTimeOpt = dateTimeAtScene(scenePos);
         if (dateTimeOpt.has_value()) {
-            QDateTime dateTime = dateTimeOpt.value();
-            int minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
-            dateTime.setTime(QTime(minutes / 60, minutes % 60));
+            QDateTime dateTime = snapDateTime(dateTimeOpt.value());
             cancelPlacementPreview();
             emit externalPlacementConfirmed(dateTime);
         } else {
@@ -321,9 +364,12 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
         resetDragCandidate();
         cancelNewEventDrag();
         for (const auto &ev : m_events) {
-            const QRectF rect = eventRect(ev);
-            const bool withinX = scenePos.x() >= rect.left() && scenePos.x() <= rect.right();
-            if (withinX) {
+            const auto segments = segmentsForEvent(ev);
+            if (segments.empty()) {
+                continue;
+            }
+            const QRectF &topRect = segments.front().rect;
+            if (scenePos.x() >= topRect.left() && scenePos.x() <= topRect.right()) {
                 auto topArea = handleArea(ev, true);
                 if (scenePos.y() >= topArea.first && scenePos.y() <= topArea.second) {
                     beginResize(ev, true);
@@ -332,6 +378,9 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
                     event->accept();
                     return;
                 }
+            }
+            const QRectF &bottomRect = segments.back().rect;
+            if (scenePos.x() >= bottomRect.left() && scenePos.x() <= bottomRect.right()) {
                 auto bottomArea = handleArea(ev, false);
                 if (scenePos.y() >= bottomArea.first && scenePos.y() <= bottomArea.second) {
                     beginResize(ev, false);
@@ -341,15 +390,24 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
                     return;
                 }
             }
-            if (!rect.contains(scenePos)) {
+
+            bool contains = false;
+            for (const auto &segment : segments) {
+                if (segment.rect.contains(scenePos)) {
+                    contains = true;
+                    break;
+                }
+            }
+            if (!contains) {
                 continue;
             }
             m_dragCandidateId = ev.id;
-            const double pointerMinutes = ((scenePos.y() - m_headerHeight) / m_hourHeight) * 60.0;
-            const double eventStartMinutes = ev.start.time().hour() * 60 + ev.start.time().minute();
-            int rawOffset = static_cast<int>(pointerMinutes - eventStartMinutes);
+            int rawOffset = 0;
+            if (const auto dateTimeOpt = dateTimeAtScene(scenePos)) {
+                rawOffset = static_cast<int>(ev.start.secsTo(dateTimeOpt.value()) / 60);
+            }
             rawOffset = snapIntervalMinutes(rawOffset);
-            const int durationMinutes = ev.start.secsTo(ev.end) / 60;
+            const int durationMinutes = qMax(1, static_cast<int>(ev.start.secsTo(ev.end) / 60));
             m_dragPointerOffsetMinutes = qBound(0, rawOffset, durationMinutes);
 
             m_selectedEvent = ev.id;
@@ -371,9 +429,7 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
         }
         auto dateTimeOpt = dateTimeAtScene(scenePos);
         if (dateTimeOpt) {
-            QDateTime anchor = dateTimeOpt.value();
-            int minutes = snapMinutes(anchor.time().hour() * 60 + anchor.time().minute());
-            anchor.setTime(QTime(minutes / 60, minutes % 60));
+            QDateTime anchor = snapDateTime(dateTimeOpt.value());
             m_newEventAnchorTime = anchor;
             m_newEventDragPending = true;
         } else {
@@ -494,9 +550,7 @@ void CalendarView::dragMoveEvent(QDragMoveEvent *event)
             event->ignore();
             return;
         }
-        QDateTime dateTime = dateTimeOpt.value();
-        int minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
-        dateTime.setTime(QTime(minutes / 60, minutes % 60));
+        QDateTime dateTime = snapDateTime(dateTimeOpt.value());
         const QString label = title.isEmpty() ? tr("Neuer Termin") : title;
         updateDropPreview(dateTime, 60, label);
         event->acceptProposedAction();
@@ -515,12 +569,9 @@ void CalendarView::dragMoveEvent(QDragMoveEvent *event)
             event->ignore();
             return;
         }
-        QDateTime dateTime = dateTimeOpt.value();
-        int minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
-        dateTime.setTime(QTime(minutes / 60, minutes % 60));
+        QDateTime dateTime = snapDateTime(dateTimeOpt.value());
         dateTime = dateTime.addSecs(-offsetMinutes * 60);
-        minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
-        dateTime.setTime(QTime(minutes / 60, minutes % 60));
+        dateTime = snapDateTime(dateTime);
         auto it = std::find_if(m_events.begin(), m_events.end(), [eventId](const data::CalendarEvent &ev) {
             return ev.id == eventId;
         });
@@ -557,10 +608,7 @@ void CalendarView::dropEvent(QDropEvent *event)
             event->ignore();
             return;
         }
-        QDateTime dateTime = dateTimeOpt.value();
-        int minutes = dateTime.time().hour() * 60 + dateTime.time().minute();
-        minutes = snapMinutes(minutes);
-        dateTime.setTime(QTime(minutes / 60, minutes % 60));
+        QDateTime dateTime = snapDateTime(dateTimeOpt.value());
         emit todoDropped(todoId, dateTime);
         m_allowNewEventCreation = false;
         event->setDropAction(Qt::MoveAction);
@@ -580,13 +628,9 @@ void CalendarView::dropEvent(QDropEvent *event)
             event->ignore();
             return;
         }
-        QDateTime dateTime = dateTimeOpt.value();
-        int minutes = dateTime.time().hour() * 60 + dateTime.time().minute();
-        minutes = snapMinutes(minutes);
-        dateTime.setTime(QTime(minutes / 60, minutes % 60));
+        QDateTime dateTime = snapDateTime(dateTimeOpt.value());
         dateTime = dateTime.addSecs(-offsetMinutes * 60);
-        minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
-        dateTime.setTime(QTime(minutes / 60, minutes % 60));
+        dateTime = snapDateTime(dateTime);
         bool copy = event->keyboardModifiers().testFlag(Qt::ControlModifier);
         emit eventDropRequested(eventId, dateTime, copy);
         m_allowNewEventCreation = false;
@@ -685,21 +729,38 @@ void CalendarView::clearGhostPreview()
     clearDropPreview();
 }
 
-QRectF CalendarView::eventRect(const data::CalendarEvent &event) const
+std::vector<CalendarView::EventSegment> CalendarView::segmentsForEvent(const data::CalendarEvent &event) const
 {
-    const int dayIndex = m_startDate.daysTo(event.start.date());
-    if (dayIndex < 0 || dayIndex >= m_dayCount) {
-        return {};
+    std::vector<EventSegment> segments;
+    if (!event.start.isValid() || !event.end.isValid() || event.start >= event.end || m_dayWidth <= 0.0) {
+        return segments;
     }
+    for (int day = 0; day < m_dayCount; ++day) {
+        const QDate date = m_startDate.addDays(day);
+        const QDateTime dayStart(date, QTime(0, 0));
+        const QDateTime dayEnd = dayStart.addDays(1);
+        if (event.end <= dayStart || event.start >= dayEnd) {
+            continue;
+        }
+        QDateTime segmentStart = event.start > dayStart ? event.start : dayStart;
+        QDateTime segmentEnd = event.end < dayEnd ? event.end : dayEnd;
+        const double startMinutes = dayStart.secsTo(segmentStart) / 60.0;
+        const double endMinutes = dayStart.secsTo(segmentEnd) / 60.0;
+        const double y = m_headerHeight + (startMinutes / 60.0) * m_hourHeight;
+        const double durationMinutes = qMax(0.0, endMinutes - startMinutes);
+        const double height = qMax((durationMinutes / 60.0) * m_hourHeight, 20.0);
+        const double x = m_timeAxisWidth + day * m_dayWidth + 6.0;
+        const double width = qMax(0.0, m_dayWidth - 12.0);
 
-    const double x = m_timeAxisWidth + dayIndex * m_dayWidth + 6;
-    const double startMinutes = event.start.time().hour() * 60 + event.start.time().minute();
-    const double endMinutes = event.end.time().hour() * 60 + event.end.time().minute();
-    const double y = m_headerHeight + (startMinutes / 60.0) * m_hourHeight;
-    const double height = qMax((endMinutes - startMinutes) / 60.0 * m_hourHeight, 20.0);
-    const double width = qMax(0.0, m_dayWidth - 12);
-
-    return QRectF(x, y, width, height);
+        EventSegment segment;
+        segment.rect = QRectF(x, y, width, height);
+        segment.segmentStart = segmentStart;
+        segment.segmentEnd = segmentEnd;
+        segment.clipTop = segmentStart > event.start;
+        segment.clipBottom = segmentEnd < event.end;
+        segments.push_back(segment);
+    }
+    return segments;
 }
 
 void CalendarView::updateScrollBars()
@@ -718,12 +779,15 @@ void CalendarView::selectEventAt(const QPoint &pos)
 {
     const QPointF scenePos = QPointF(pos) + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
     for (const auto &eventData : m_events) {
-        if (eventRect(eventData).contains(scenePos)) {
-            m_selectedEvent = eventData.id;
-            viewport()->update();
-            emit eventActivated(eventData);
-            emit eventSelected(eventData);
-            return;
+        const auto segments = segmentsForEvent(eventData);
+        for (const auto &segment : segments) {
+            if (segment.rect.contains(scenePos)) {
+                m_selectedEvent = eventData.id;
+                viewport()->update();
+                emit eventActivated(eventData);
+                emit eventSelected(eventData);
+                return;
+            }
         }
     }
     m_selectedEvent = {};
@@ -753,19 +817,24 @@ void CalendarView::emitHoverAt(const QPoint &pos)
     QUuid newTop;
     QUuid newBottom;
     for (const auto &eventData : m_events) {
-        const QRectF rect = eventRect(eventData);
-        if (scenePos.x() < rect.left() || scenePos.x() > rect.right()) {
+        const auto segments = segmentsForEvent(eventData);
+        if (segments.empty()) {
             continue;
         }
-
-        auto topArea = handleArea(eventData, true);
-        if (scenePos.y() >= topArea.first && scenePos.y() <= topArea.second) {
-            newTop = eventData.id;
+        const QRectF &topRect = segments.front().rect;
+        if (scenePos.x() >= topRect.left() && scenePos.x() <= topRect.right()) {
+            auto topArea = handleArea(eventData, true);
+            if (scenePos.y() >= topArea.first && scenePos.y() <= topArea.second) {
+                newTop = eventData.id;
+            }
         }
 
-        auto bottomArea = handleArea(eventData, false);
-        if (scenePos.y() >= bottomArea.first && scenePos.y() <= bottomArea.second) {
-            newBottom = eventData.id;
+        const QRectF &bottomRect = segments.back().rect;
+        if (scenePos.x() >= bottomRect.left() && scenePos.x() <= bottomRect.right()) {
+            auto bottomArea = handleArea(eventData, false);
+            if (scenePos.y() >= bottomArea.first && scenePos.y() <= bottomArea.second) {
+                newBottom = eventData.id;
+            }
         }
 
         if (!newTop.isNull() && !newBottom.isNull()) {
@@ -784,6 +853,23 @@ int CalendarView::snapMinutes(double value) const
 {
     const int snapped = static_cast<int>(qRound(value / SnapIntervalMinutes) * SnapIntervalMinutes);
     return qBound(0, snapped, 24 * 60);
+}
+
+QDateTime CalendarView::snapDateTime(const QDateTime &value) const
+{
+    if (!value.isValid()) {
+        return value;
+    }
+    QDateTime snapped = value;
+    const int minutes = value.time().hour() * 60 + value.time().minute();
+    int rounded = snapMinutes(minutes);
+    if (rounded >= 24 * 60) {
+        snapped = snapped.addDays(1);
+        snapped.setTime(QTime(0, 0));
+    } else {
+        snapped.setTime(QTime(rounded / 60, rounded % 60));
+    }
+    return snapped;
 }
 
 int CalendarView::snapIntervalMinutes(int value) const
@@ -806,23 +892,21 @@ void CalendarView::updateResize(const QPointF &scenePos)
     if (m_dragMode == DragMode::None) {
         return;
     }
-    const double y = scenePos.y() - m_headerHeight;
-    if (y < 0) {
+    const auto dateTimeOpt = dateTimeAtScene(scenePos);
+    if (!dateTimeOpt) {
         return;
     }
-    const double minutes = (y / m_hourHeight) * 60.0;
-    const int snappedMinutes = snapMinutes(minutes);
-    const QTime time = QTime(0, 0).addSecs(snappedMinutes * 60);
+    QDateTime snapped = snapDateTime(dateTimeOpt.value());
 
     if (m_dragMode == DragMode::ResizeStart) {
         const auto minEnd = m_dragEvent.end.addSecs(-SnapIntervalMinutes * 60);
-        QDateTime newStart(m_dragEvent.start.date(), time);
+        QDateTime newStart = snapped;
         if (newStart < minEnd) {
             m_dragEvent.start = newStart;
         }
     } else if (m_dragMode == DragMode::ResizeEnd) {
         const auto minStart = m_dragEvent.start.addSecs(SnapIntervalMinutes * 60);
-        QDateTime newEnd(m_dragEvent.end.date(), time);
+        QDateTime newEnd = snapped;
         if (newEnd > minStart) {
             m_dragEvent.end = newEnd;
         }
@@ -870,8 +954,11 @@ std::optional<QDateTime> CalendarView::dateTimeAtScene(const QPointF &scenePos) 
 const data::CalendarEvent *CalendarView::eventAt(const QPointF &scenePos) const
 {
     for (const auto &eventData : m_events) {
-        if (eventRect(eventData).contains(scenePos)) {
-            return &eventData;
+        const auto segments = segmentsForEvent(eventData);
+        for (const auto &segment : segments) {
+            if (segment.rect.contains(scenePos)) {
+                return &eventData;
+            }
         }
     }
     return nullptr;
@@ -896,14 +983,9 @@ void CalendarView::updateInternalEventDrag(const QPointF &scenePos)
         clearDropPreview();
         return;
     }
-    QDateTime target = dateTimeOpt.value();
-    int minutes = target.time().hour() * 60 + target.time().minute();
-    minutes = snapMinutes(minutes);
-    target.setTime(QTime(minutes / 60, minutes % 60));
+    QDateTime target = snapDateTime(dateTimeOpt.value());
     target = target.addSecs(-m_internalDragOffsetMinutes * 60);
-    minutes = target.time().hour() * 60 + target.time().minute();
-    minutes = snapMinutes(minutes);
-    target.setTime(QTime(minutes / 60, minutes % 60));
+    target = snapDateTime(target);
     updateDropPreview(target, m_internalDragDurationMinutes, m_internalDragSource.title);
 }
 
@@ -920,14 +1002,9 @@ void CalendarView::finalizeInternalEventDrag(const QPointF &scenePos)
     }
     auto dateTimeOpt = dateTimeAtScene(scenePos);
     if (dateTimeOpt) {
-        QDateTime target = dateTimeOpt.value();
-        int minutes = target.time().hour() * 60 + target.time().minute();
-        minutes = snapMinutes(minutes);
-        target.setTime(QTime(minutes / 60, minutes % 60));
+        QDateTime target = snapDateTime(dateTimeOpt.value());
         target = target.addSecs(-m_internalDragOffsetMinutes * 60);
-        minutes = target.time().hour() * 60 + target.time().minute();
-        minutes = snapMinutes(minutes);
-        target.setTime(QTime(minutes / 60, minutes % 60));
+        target = snapDateTime(target);
         bool copy = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
         emit eventDropRequested(m_internalDragSource.id, target, copy);
         m_allowNewEventCreation = false;
@@ -990,8 +1067,7 @@ void CalendarView::updateNewEventDrag(const QPointF &scenePos)
     auto dateTimeOpt = dateTimeAtScene(scenePos);
     QDateTime current = dateTimeOpt.value_or(m_newEventAnchorTime);
     if (current.isValid()) {
-        int minutes = snapMinutes(current.time().hour() * 60 + current.time().minute());
-        current.setTime(QTime(minutes / 60, minutes % 60));
+        current = snapDateTime(current);
     } else {
         current = m_newEventAnchorTime;
     }
@@ -1066,13 +1142,13 @@ void CalendarView::updateDropPreview(const QDateTime &start, int durationMinutes
     preview.start = start;
     preview.end = start.addSecs(durationMinutes * 60);
 
-    const QRectF rect = eventRect(preview);
-    if (rect.isEmpty()) {
+    const auto previewSegments = segmentsForEvent(preview);
+    if (previewSegments.empty()) {
         clearDropPreview();
         return;
     }
 
-    m_dropPreviewRect = rect;
+    m_dropPreviewEvent = preview;
     m_dropPreviewText = label;
     if (!m_showDropPreview) {
         m_showDropPreview = true;
@@ -1086,14 +1162,18 @@ void CalendarView::clearDropPreview()
         return;
     }
     m_showDropPreview = false;
-    m_dropPreviewRect = QRectF();
+    m_dropPreviewEvent = data::CalendarEvent();
     m_dropPreviewText.clear();
     viewport()->update();
 }
 
 QPair<double, double> CalendarView::handleArea(const data::CalendarEvent &event, bool top) const
 {
-    QRectF rect = eventRect(event);
+    const auto segments = segmentsForEvent(event);
+    if (segments.empty()) {
+        return { 0.0, 0.0 };
+    }
+    const QRectF rect = top ? segments.front().rect : segments.back().rect;
     const double center = top ? rect.top() : rect.bottom();
     double minY = center - HandleHoverRange;
     double maxY = center + HandleHoverRange;
@@ -1106,14 +1186,16 @@ QPair<double, double> CalendarView::handleArea(const data::CalendarEvent &event,
         if (other.id == event.id) {
             continue;
         }
-        QRectF otherRect = eventRect(other);
-        if (!overlapsHorizontally(otherRect)) {
-            continue;
-        }
-        if (top && otherRect.bottom() <= rect.top()) {
-            minY = std::max(minY, otherRect.bottom());
-        } else if (!top && otherRect.top() >= rect.bottom()) {
-            maxY = std::min(maxY, otherRect.top());
+        const auto otherSegments = segmentsForEvent(other);
+        for (const auto &otherRect : otherSegments) {
+            if (!overlapsHorizontally(otherRect.rect)) {
+                continue;
+            }
+            if (top && otherRect.rect.bottom() <= rect.top()) {
+                minY = std::max(minY, otherRect.rect.bottom());
+            } else if (!top && otherRect.rect.top() >= rect.bottom()) {
+                maxY = std::min(maxY, otherRect.rect.top());
+            }
         }
     }
 

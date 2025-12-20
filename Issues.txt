@@ -44,10 +44,26 @@ könnte es vermieden werden, dass es ein neues Feld braucht.
 Beim Einfügen in den Kalender soll das Ghostelement dann gleich die richtige Größe (=Dauer) haben. 
 Aktuell wird immer 1 Stunde angenommen. Das soll weiterhin so sein, für TODOs, die noch keine Dauer festgelegt bekommenb haben. 
 
+Damit angrenzende Events besser dargestellt werden, braucht die farbige fläch einen Rand mit einem dezenten Kontrast. 
 
+Überlappende Events: 
+hier gibt es verschiedene Szenarien: 
+* ein kurzer Event innerhalb eines langen Events: 
+    der kurze wird rechtsbündig dargestellt und liegt in z-Richtung oberhalb des langen Events
+* 2 lange Events überlappen sich
+    der zeitlich erste Event bleibt linksbündig, der zweite wird rechtsbündig dargestellt. 
+* 2 gleich große Events zur gleichen Zeit
+    werden direkt nebeneinander dargestellt
+Gemeinsames Verhalten: 
+    Durch ein Mouse-Hover kann einer der überlappenden Events in den vordergrund gebracht werden, der dann temporär 85% der Breite einnimmt. 
 
 WIP ################################
 
+Events müssen über die 0:00 Uhr Grenze verschoben werden können. D.h. wenn ich einen 3h-Event verschiebe auf 22:00 Uhr Startzeit, dann geht der Event über 24 Uhr hinaus, und am nächsten Tag erscheint dann auch eine Stunde. 
+Um das besser zu visualisieren, vergrößern wir generell die abgerundeten Ecken auf 8 Pixel. Geht ein Event über die 0-Uhr grenze hinaus, wird er dort rechteckig abgeschnitten, also ohne abgerundete Ecken. 
+
+
+DONE ###############################
 Links soll es 3 Listen geben:
 Offen (oben), In Arbeit (mittig), Erledigt (unten)
 Erledigt soll graue Schrift haben. 
@@ -55,7 +71,6 @@ Die Dropdown für Alle/Erledigt/Offen/InArbeit braucht es somit nicht mehr.
 Der Suchfilter wird immer auf alle 3 Listen angewandt.  
 Die größe der Listenfelder soll durch mittiges ziehen angepasst werden können (muss auch in QSettings gemerkt werden)
 
-DONE ###############################
 Im "Details Panel" soll neben  den Uhrzeiten auch die Dauer angezeigt werden.
 
 Manchmal kommt es dazu, dass der Inline-Editor aufpoppt, wenn man einen Termin an den Handles zieht. 

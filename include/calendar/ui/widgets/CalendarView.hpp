@@ -63,11 +63,11 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-    QRectF eventRect(const data::CalendarEvent &event) const;
     void updateScrollBars();
     void selectEventAt(const QPoint &pos);
     void emitHoverAt(const QPoint &pos);
     int snapMinutes(double value) const;
+    QDateTime snapDateTime(const QDateTime &value) const;
     int snapIntervalMinutes(int value) const;
     void beginResize(const data::CalendarEvent &event, bool adjustStart);
     void updateResize(const QPointF &scenePos);
@@ -86,6 +86,14 @@ private:
     void finalizeInternalEventDrag(const QPointF &scenePos);
     void cancelInternalEventDrag();
     std::optional<data::TodoStatus> todoStatusUnderCursor(const QPoint &globalPos) const;
+    struct EventSegment {
+        QRectF rect;
+        QDateTime segmentStart;
+        QDateTime segmentEnd;
+        bool clipTop = false;
+        bool clipBottom = false;
+    };
+    std::vector<EventSegment> segmentsForEvent(const data::CalendarEvent &event) const;
     void startNewEventDrag();
     void updateNewEventDrag(const QPointF &scenePos);
     void finalizeNewEventDrag();
@@ -112,7 +120,7 @@ private:
     bool m_draggingEvent = false;
     int m_dragPointerOffsetMinutes = 0;
     bool m_showDropPreview = false;
-    QRectF m_dropPreviewRect;
+    data::CalendarEvent m_dropPreviewEvent;
     QString m_dropPreviewText;
     bool m_externalPlacementMode = false;
     int m_externalPlacementDuration = 0;
