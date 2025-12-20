@@ -226,13 +226,34 @@ void CalendarView::paintEvent(QPaintEvent *event)
             painter.setPen(Qt::NoPen);
         }
 
+        const qint64 durationMinutes = qMax<qint64>(5, eventData.start.secsTo(eventData.end) / 60);
+        const int hours = static_cast<int>(durationMinutes / 60);
+        const int minutes = static_cast<int>(durationMinutes % 60);
+        QString durationText;
+        if (hours > 0 && minutes > 0) {
+            durationText = tr("%1h %2m").arg(hours).arg(minutes);
+        } else if (hours > 0) {
+            durationText = tr("%1h").arg(hours);
+        } else {
+            durationText = tr("%1m").arg(minutes);
+        }
         painter.setPen(Qt::white);
-        painter.drawText(rect.adjusted(4, 2, -4, -2),
-                         Qt::TextWordWrap,
-                         QStringLiteral("%1\n%2 - %3")
+        const QString startInfo = tr("%1 (%2)")
+                                      .arg(eventData.start.time().toString(QStringLiteral("hh:mm")),
+                                           durationText);
+        QRectF textRect = rect.adjusted(4, 2, -4, -rect.height() / 2);
+        painter.drawText(textRect,
+                         Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop,
+                         tr("%1\n%2")
                              .arg(eventData.title,
-                                  eventData.start.time().toString(QStringLiteral("hh:mm")),
-                                  eventData.end.time().toString(QStringLiteral("hh:mm"))));
+                                  startInfo));
+
+        painter.drawText(QRectF(rect.left() + 4,
+                                rect.bottom() - 20,
+                                rect.width() - 8,
+                                18),
+                         Qt::AlignLeft | Qt::AlignVCenter,
+                         eventData.end.time().toString(QStringLiteral("hh:mm")));
     }
 
     if (m_showDropPreview && m_dropPreviewRect.isValid()) {
