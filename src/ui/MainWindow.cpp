@@ -528,6 +528,9 @@ void MainWindow::handleEventSelected(const data::CalendarEvent &event)
     if (m_previewVisible) {
         showPreviewForSelection();
     }
+    if (m_eventEditor && m_eventEditor->isVisible()) {
+        m_eventEditor->setEvent(event);
+    }
     showSelectionHint();
 }
 
@@ -652,6 +655,9 @@ void MainWindow::handleTodoSelectionChanged()
         cancelPendingPlacement();
         if (m_previewVisible) {
             showPreviewForSelection();
+        }
+        if (m_eventEditor && m_eventEditor->isVisible()) {
+            m_eventEditor->setTodo(*m_selectedTodo);
         }
     }
 }
