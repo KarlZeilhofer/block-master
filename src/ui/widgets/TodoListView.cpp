@@ -3,12 +3,8 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
-#include <QDataStream>
-#include <QIODevice>
 
-namespace {
-constexpr auto TodoMimeType = "application/x-calendar-todo";
-}
+#include "calendar/ui/mime/TodoMime.hpp"
 
 namespace calendar {
 namespace ui {
@@ -75,14 +71,10 @@ QList<QUuid> TodoListView::decodeTodoIds(const QMimeData *mime) const
     if (!mime || !mime->hasFormat(TodoMimeType)) {
         return ids;
     }
-    QByteArray payload = mime->data(TodoMimeType);
-    QDataStream stream(&payload, QIODevice::ReadOnly);
-    while (!stream.atEnd()) {
-        QUuid id;
-        QString title;
-        stream >> id >> title;
-        if (!id.isNull()) {
-            ids << id;
+    const auto entries = decodeTodoMime(mime->data(TodoMimeType));
+    for (const auto &entry : entries) {
+        if (!entry.id.isNull()) {
+            ids << entry.id;
         }
     }
     return ids;

@@ -3,10 +3,10 @@
 #include <QDataStream>
 #include <QMimeData>
 
+#include "calendar/ui/mime/TodoMime.hpp"
+
 namespace calendar {
 namespace ui {
-
-static const char *TodoMimeType = "application/x-calendar-todo";
 
 TodoListModel::TodoListModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -29,8 +29,25 @@ QVariant TodoListModel::data(const QModelIndex &index, int role) const
 
     const auto &todo = m_todos.at(index.row());
     switch (role) {
-    case Qt::DisplayRole:
-        return todo.title;
+    case Qt::DisplayRole: {
+        QString display = todo.title;
+        if (todo.durationMinutes > 0) {
+            const int hours = todo.durationMinutes / 60;
+            const int minutes = todo.durationMinutes % 60;
+            QString durationText;
+            if (hours > 0 && minutes > 0) {
+                durationText = tr("%1h %2m").arg(hours).arg(minutes);
+            } else if (hours > 0) {
+                durationText = tr("%1h").arg(hours);
+            } else if (minutes > 0) {
+                durationText = tr("%1m").arg(minutes);
+            }
+            if (!durationText.isEmpty()) {
+                display += tr(" (%1)").arg(durationText);
+            }
+        }
+        return display;
+    }
     case Qt::ToolTipRole:
         return todo.description;
     default:
@@ -50,17 +67,16 @@ Qt::ItemFlags TodoListModel::flags(const QModelIndex &index) const
 QMimeData *TodoListModel::mimeData(const QModelIndexList &indexes) const
 {
     auto *mime = new QMimeData();
-    QByteArray encoded;
-    QDataStream stream(&encoded, QIODevice::WriteOnly);
+    QList<TodoMimeEntry> entries;
 
     for (const auto &index : indexes) {
         if (!index.isValid()) {
             continue;
         }
         const auto &todo = m_todos.at(index.row());
-        stream << todo.id << todo.title;
+        entries.append({ todo.id, todo.title, todo.durationMinutes });
     }
-    mime->setData(TodoMimeType, encoded);
+    mime->setData(TodoMimeType, encodeTodoMime(entries));
     return mime;
 }
 

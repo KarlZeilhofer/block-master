@@ -51,7 +51,10 @@ hier gibt es verschiedene Szenarien:
 * 2 gleich große Events zur gleichen Zeit
     werden direkt nebeneinander dargestellt
 Gemeinsames Verhalten: 
-    Durch ein Mouse-Hover kann einer der überlappenden Events in den vordergrund gebracht werden, der dann temporär 85% der Breite einnimmt. 
+    Durch ein Mouse-Hover kann einer der überlappenden Events in den vordergrund gebracht werden, der dann temporär 85% der Breite einnimmt - links bzw. rechtsbündig. 
+    Ein Drag-Start oder Select-click muss sich immer auf das hervorgehobene Element beziehen. 
+
+Zeige die aktuelle Uhrzeit als horizontale Linie am heutigen Tag in roter Farbe. 
 
 WIP ################################
 

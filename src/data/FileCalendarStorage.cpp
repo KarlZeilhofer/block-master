@@ -238,6 +238,8 @@ void FileCalendarStorage::load()
                 currentTodo.tags = splitList(value);
             } else if (name == QLatin1String("X-TASKMASTER-SCHEDULED")) {
                 currentTodo.scheduled = rawValue.compare(QLatin1String("TRUE"), Qt::CaseInsensitive) == 0;
+            } else if (name == QLatin1String("X-TASKMASTER-DURATION")) {
+                currentTodo.durationMinutes = rawValue.toInt();
             }
         }
     };
@@ -349,6 +351,9 @@ void FileCalendarStorage::save() const
         }
         if (todo.scheduled) {
             stream << "X-TASKMASTER-SCHEDULED:TRUE\n";
+        }
+        if (todo.durationMinutes > 0) {
+            stream << "X-TASKMASTER-DURATION:" << todo.durationMinutes << '\n';
         }
         stream << "END:VTODO\n";
     }

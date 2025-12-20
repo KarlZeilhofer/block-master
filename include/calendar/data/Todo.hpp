@@ -26,6 +26,7 @@ struct TodoItem
     QStringList tags;
     TodoStatus status = TodoStatus::Pending;
     bool scheduled = false;
+    int durationMinutes = 0;
 };
 
 } // namespace data

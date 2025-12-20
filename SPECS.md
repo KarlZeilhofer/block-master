@@ -34,7 +34,8 @@ Hauptaufgaben:
 
 ### 4.1 Paneelaufteilung
 - **TODO-Liste**: anpassbare Breite, collapsible, besteht aus drei vertikal geteilten Abschnitten (`Offen`, `In Arbeit`, `Erledigt`). Jeder Abschnitt hat eine eigene Liste (graue Typografie für „Erledigt“), die per Drag & Drop sowohl untereinander als auch mit dem Kalender interagiert. Die Teilbereiche lassen sich über einen Splitter proportional anpassen; die Größen werden in QSettings persistiert. Ein globaler Suchfilter (über den Listen) wirkt auf alle drei Abschnitte gleichzeitig. Elemente verschwinden nach erfolgreichem Drop in den Kalender (oder werden als „geplant“ markiert).
-- TODO-Einträge besitzen neben Titel auch Ort und Beschreibung; der Info-Dialog zeigt diese Felder an, egal ob ein Termin oder ein TODO markiert ist.
+- TODO-Einträge besitzen neben Titel auch Ort, Beschreibung und eine explizite Dauer (`durationMinutes`). Die Dauer wird in jedem Listeneintrag automatisch rechts neben dem Titel angezeigt, z. B. `Briefing (45m)` oder `Kickoff (2h 15m)`. Wird keine Dauer gepflegt, greift implizit der Standardwert von 60 Minuten, der ebenfalls in Klammern dargestellt wird. Dieser Wert wird zusammen mit den restlichen TODO-Daten in der `default.ics` gespeichert, sodass das Scheduling konsistent bleibt.
+- Der Info-Dialog zeigt die kompletten Felder stets an, egal ob ein Termin oder ein TODO markiert ist, inkl. Dauerlabel.
 - **Kalenderbereich**: Tabs oder Umschalter für Ansichten (Tag/Woche/Arbeitswoche/Monat/Agenda). Separate Zoomslider bzw. Gesten (Ctrl+Scroll = horizontaler Zoom, Shift+Scroll = vertikal).
 
 ### 4.2 Navigationskopf

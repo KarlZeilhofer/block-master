@@ -23,6 +23,8 @@
 #include <algorithm>
 #include <map>
 
+#include "calendar/ui/mime/TodoMime.hpp"
+
 namespace calendar {
 namespace ui {
 
@@ -31,7 +33,6 @@ constexpr double MinHourHeight = 20.0;
 constexpr double MaxHourHeight = 160.0;
 constexpr double HandleZone = 8.0;
 constexpr int SnapIntervalMinutes = 15;
-const char *TodoMimeType = "application/x-calendar-todo";
 const char *EventMimeType = "application/x-calendar-event";
 constexpr double HandleHoverRange = 12.0;
 constexpr double EventCornerRadius = 8.0;
@@ -550,11 +551,12 @@ void CalendarView::dragMoveEvent(QDragMoveEvent *event)
         + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
 
     if (mime->hasFormat(TodoMimeType)) {
-        QByteArray payload = mime->data(TodoMimeType);
-        QDataStream stream(&payload, QIODevice::ReadOnly);
-        QUuid todoId;
-        QString title;
-        stream >> todoId >> title;
+        const auto entry = firstTodoMimeEntry(mime->data(TodoMimeType));
+        if (!entry.has_value()) {
+            clearDropPreview();
+            event->ignore();
+            return;
+        }
         auto dateTimeOpt = dateTimeAtScene(scenePos);
         if (!dateTimeOpt) {
             clearDropPreview();
@@ -562,8 +564,9 @@ void CalendarView::dragMoveEvent(QDragMoveEvent *event)
             return;
         }
         QDateTime dateTime = snapDateTime(dateTimeOpt.value());
-        const QString label = title.isEmpty() ? tr("Neuer Termin") : title;
-        updateDropPreview(dateTime, 60, label);
+        const int durationMinutes = entry->durationMinutes > 0 ? entry->durationMinutes : 60;
+        const QString label = entry->title.isEmpty() ? tr("Neuer Termin") : entry->title;
+        updateDropPreview(dateTime, durationMinutes, label);
         event->acceptProposedAction();
         return;
     }
@@ -609,18 +612,18 @@ void CalendarView::dropEvent(QDropEvent *event)
     clearDropPreview();
 
     if (mime->hasFormat(TodoMimeType)) {
-        QByteArray payload = mime->data(TodoMimeType);
-        QDataStream stream(&payload, QIODevice::ReadOnly);
-        QUuid todoId;
-        QString title;
-        stream >> todoId >> title;
+        const auto entry = firstTodoMimeEntry(mime->data(TodoMimeType));
+        if (!entry.has_value()) {
+            event->ignore();
+            return;
+        }
         auto dateTimeOpt = dateTimeAtScene(scenePos);
         if (!dateTimeOpt.has_value()) {
             event->ignore();
             return;
         }
         QDateTime dateTime = snapDateTime(dateTimeOpt.value());
-        emit todoDropped(todoId, dateTime);
+        emit todoDropped(entry->id, dateTime);
         m_allowNewEventCreation = false;
         event->setDropAction(Qt::MoveAction);
         event->accept();

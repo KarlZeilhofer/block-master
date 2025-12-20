@@ -48,6 +48,8 @@ add_library(calendar_ui STATIC
     include/calendar/ui/widgets/TodoListView.hpp
     src/ui/dialogs/EventDetailDialog.cpp
     include/calendar/ui/dialogs/EventDetailDialog.hpp
+    src/ui/mime/TodoMime.cpp
+    include/calendar/ui/mime/TodoMime.hpp
 )
 target_include_directories(calendar_ui PUBLIC include)
 target_link_libraries(calendar_ui PUBLIC Qt5::Widgets calendar_core calendar_data)

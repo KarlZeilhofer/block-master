@@ -801,7 +801,8 @@ void MainWindow::handleTodoDropped(const QUuid &todoId, const QDateTime &start)
     event.title = todoOpt->title;
     event.description = todoOpt->description;
     event.start = start;
-    event.end = start.addSecs(60 * 60);
+    const int durationMinutes = todoOpt->durationMinutes > 0 ? todoOpt->durationMinutes : 60;
+    event.end = start.addSecs(durationMinutes * 60);
     event.location = todoOpt->location.isEmpty() ? tr("Geplant aus TODO") : todoOpt->location;
     m_appContext->eventRepository().addEvent(event);
     m_appContext->todoRepository().removeTodo(todoId);
@@ -896,6 +897,8 @@ void MainWindow::handleEventDroppedToTodo(const data::CalendarEvent &event, data
     todo.priority = 0;
     todo.status = status;
     todo.scheduled = false;
+    const qint64 durationMinutes = qMax<qint64>(15, event.start.secsTo(event.end) / 60);
+    todo.durationMinutes = static_cast<int>(durationMinutes);
 
     m_appContext->todoRepository().addTodo(todo);
     m_appContext->eventRepository().removeEvent(event.id);
