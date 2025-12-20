@@ -29,6 +29,7 @@ constexpr double HandleZone = 8.0;
 constexpr int SnapIntervalMinutes = 15;
 const char *TodoMimeType = "application/x-calendar-todo";
 const char *EventMimeType = "application/x-calendar-event";
+constexpr double HandleHoverRange = 12.0;
 } // namespace
 
 CalendarView::CalendarView(QWidget *parent)
@@ -140,20 +141,27 @@ void CalendarView::paintEvent(QPaintEvent *event)
         painter.setPen(Qt::NoPen);
         painter.drawRoundedRect(rect, 4, 4);
 
-        if (eventData.id == m_hoveredEventId) {
-            const double handleHeight = 6.0;
+        const double handleHeight = 6.0;
+        QColor handleColor = palette().highlight().color().lighter(130);
+        handleColor.setAlpha(160);
+        painter.setPen(Qt::NoPen);
+        if (eventData.id == m_hoverTopHandleId) {
             QRectF topHandle(rect.x() + 6, rect.y() - handleHeight / 2, rect.width() - 12, handleHeight);
-            QRectF bottomHandle(rect.x() + 6, rect.bottom() - handleHeight / 2, rect.width() - 12, handleHeight);
-            QColor handleColor = palette().highlight().color().lighter(130);
-            handleColor.setAlpha(180);
             painter.setBrush(handleColor);
             painter.drawRoundedRect(topHandle, 3, 3);
-            painter.drawRoundedRect(bottomHandle, 3, 3);
             painter.setPen(QPen(palette().base().color(), 1));
             painter.drawLine(QPointF(topHandle.left() + 4, topHandle.center().y()),
                              QPointF(topHandle.right() - 4, topHandle.center().y()));
+            painter.setPen(Qt::NoPen);
+        }
+        if (eventData.id == m_hoverBottomHandleId) {
+            QRectF bottomHandle(rect.x() + 6, rect.bottom() - handleHeight / 2, rect.width() - 12, handleHeight);
+            painter.setBrush(handleColor);
+            painter.drawRoundedRect(bottomHandle, 3, 3);
+            painter.setPen(QPen(palette().base().color(), 1));
             painter.drawLine(QPointF(bottomHandle.left() + 4, bottomHandle.center().y()),
                              QPointF(bottomHandle.right() - 4, bottomHandle.center().y()));
+            painter.setPen(Qt::NoPen);
         }
 
         painter.setPen(Qt::white);
@@ -247,22 +255,24 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
         resetDragCandidate();
         for (const auto &ev : m_events) {
             const QRectF rect = eventRect(ev);
+            const bool withinX = scenePos.x() >= rect.left() && scenePos.x() <= rect.right();
+            if (withinX) {
+                auto topArea = handleArea(ev, true);
+                if (scenePos.y() >= topArea.first && scenePos.y() <= topArea.second) {
+                    beginResize(ev, true);
+                    event->accept();
+                    return;
+                }
+                auto bottomArea = handleArea(ev, false);
+                if (scenePos.y() >= bottomArea.first && scenePos.y() <= bottomArea.second) {
+                    beginResize(ev, false);
+                    event->accept();
+                    return;
+                }
+            }
             if (!rect.contains(scenePos)) {
                 continue;
             }
-            const double topDist = scenePos.y() - rect.top();
-            const double bottomDist = rect.bottom() - scenePos.y();
-            if (topDist <= HandleZone) {
-                beginResize(ev, true);
-                event->accept();
-                return;
-            }
-            if (bottomDist <= HandleZone) {
-                beginResize(ev, false);
-                event->accept();
-                return;
-            }
-
             m_dragCandidateId = ev.id;
             const double pointerMinutes = ((scenePos.y() - m_headerHeight) / m_hourHeight) * 60.0;
             const double eventStartMinutes = ev.start.time().hour() * 60 + ev.start.time().minute();
@@ -535,32 +545,44 @@ void CalendarView::emitHoverAt(const QPoint &pos)
 {
     const QPointF scenePos = QPointF(pos) + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
     const double y = scenePos.y() - m_headerHeight;
-    if (y < 0) {
-        if (!m_hoveredEventId.isNull()) {
-            m_hoveredEventId = QUuid();
-            viewport()->update();
+    if (y >= 0) {
+        const double hours = y / m_hourHeight;
+        const int hour = static_cast<int>(hours);
+        const int minute = static_cast<int>((hours - hour) * 60);
+        const double x = scenePos.x() - m_timeAxisWidth;
+        const int dayIndex = static_cast<int>(x / m_dayWidth);
+        if (dayIndex >= 0 && dayIndex < m_dayCount) {
+            QDateTime dt(m_startDate.addDays(dayIndex), QTime(hour, minute));
+            emit hoveredDateTime(dt);
         }
-        return;
     }
-    const double hours = y / m_hourHeight;
-    const int hour = static_cast<int>(hours);
-    const int minute = static_cast<int>((hours - hour) * 60);
-    const double x = scenePos.x() - m_timeAxisWidth;
-    const int dayIndex = static_cast<int>(x / m_dayWidth);
-    if (dayIndex < 0 || dayIndex >= m_dayCount) {
-        if (!m_hoveredEventId.isNull()) {
-            m_hoveredEventId = QUuid();
-            viewport()->update();
-        }
-        return;
-    }
-    QDateTime dt(m_startDate.addDays(dayIndex), QTime(hour, minute));
-    emit hoveredDateTime(dt);
 
-    const auto *hovered = eventAt(scenePos);
-    QUuid newId = hovered ? hovered->id : QUuid();
-    if (newId != m_hoveredEventId) {
-        m_hoveredEventId = newId;
+    QUuid newTop;
+    QUuid newBottom;
+    for (const auto &eventData : m_events) {
+        const QRectF rect = eventRect(eventData);
+        if (scenePos.x() < rect.left() || scenePos.x() > rect.right()) {
+            continue;
+        }
+
+        auto topArea = handleArea(eventData, true);
+        if (scenePos.y() >= topArea.first && scenePos.y() <= topArea.second) {
+            newTop = eventData.id;
+        }
+
+        auto bottomArea = handleArea(eventData, false);
+        if (scenePos.y() >= bottomArea.first && scenePos.y() <= bottomArea.second) {
+            newBottom = eventData.id;
+        }
+
+        if (!newTop.isNull() && !newBottom.isNull()) {
+            break;
+        }
+    }
+
+    if (newTop != m_hoverTopHandleId || newBottom != m_hoverBottomHandleId) {
+        m_hoverTopHandleId = newTop;
+        m_hoverBottomHandleId = newBottom;
         viewport()->update();
     }
 }
@@ -713,6 +735,45 @@ void CalendarView::clearDropPreview()
     m_dropPreviewRect = QRectF();
     m_dropPreviewText.clear();
     viewport()->update();
+}
+
+QPair<double, double> CalendarView::handleArea(const data::CalendarEvent &event, bool top) const
+{
+    QRectF rect = eventRect(event);
+    const double center = top ? rect.top() : rect.bottom();
+    double minY = center - HandleHoverRange;
+    double maxY = center + HandleHoverRange;
+
+    const auto overlapsHorizontally = [&](const QRectF &other) {
+        return !(other.right() <= rect.left() || other.left() >= rect.right());
+    };
+
+    for (const auto &other : m_events) {
+        if (other.id == event.id) {
+            continue;
+        }
+        QRectF otherRect = eventRect(other);
+        if (!overlapsHorizontally(otherRect)) {
+            continue;
+        }
+        if (top && otherRect.bottom() <= rect.top()) {
+            minY = std::max(minY, otherRect.bottom());
+        } else if (!top && otherRect.top() >= rect.bottom()) {
+            maxY = std::min(maxY, otherRect.top());
+        }
+    }
+
+    if (top) {
+        maxY = std::min(maxY, rect.top() + HandleHoverRange);
+    } else {
+        minY = std::max(minY, rect.bottom() - HandleHoverRange);
+    }
+
+    if (minY > maxY) {
+        minY = maxY = center;
+    }
+
+    return { minY, maxY };
 }
 
 } // namespace ui

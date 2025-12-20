@@ -6,6 +6,7 @@
 #include <optional>
 #include <vector>
 #include <QString>
+#include <QPair>
 
 #include "calendar/data/Event.hpp"
 
@@ -67,6 +68,7 @@ private:
     void resetDragCandidate();
     void updateDropPreview(const QDateTime &start, int durationMinutes, const QString &label);
     void clearDropPreview();
+    QPair<double, double> handleArea(const data::CalendarEvent &event, bool top) const;
 
     QDate m_startDate;
     int m_dayCount = 5;
@@ -94,7 +96,8 @@ private:
     bool m_externalPlacementMode = false;
     int m_externalPlacementDuration = 0;
     QString m_externalPlacementLabel;
-    QUuid m_hoveredEventId;
+    QUuid m_hoverTopHandleId;
+    QUuid m_hoverBottomHandleId;
 };
 
 } // namespace ui
