@@ -564,7 +564,7 @@ void MainWindow::addQuickTodo()
 
     data::TodoItem todo;
     todo.title = title.trimmed();
-    todo.description = tr("Schnell erfasst");
+    todo.description.clear();
     todo.priority = 1;
     todo.dueDate = QDateTime::currentDateTime().addDays(1);
 
@@ -805,7 +805,7 @@ void MainWindow::handleTodoDropped(const QUuid &todoId, const QDateTime &start)
     event.start = start;
     const int durationMinutes = todoOpt->durationMinutes > 0 ? todoOpt->durationMinutes : 60;
     event.end = start.addSecs(durationMinutes * 60);
-    event.location = todoOpt->location.isEmpty() ? tr("Geplant aus TODO") : todoOpt->location;
+    event.location = todoOpt->location;
     m_appContext->eventRepository().addEvent(event);
     m_appContext->todoRepository().removeTodo(todoId);
 

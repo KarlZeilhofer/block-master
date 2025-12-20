@@ -11,6 +11,7 @@ class QDateTimeEdit;
 class QPlainTextEdit;
 class QPushButton;
 class QLabel;
+class QKeyEvent;
 
 namespace calendar {
 namespace ui {
@@ -33,6 +34,9 @@ signals:
     void saveTodoRequested(const data::TodoItem &todo);
     void cancelRequested();
 
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+
 private slots:
     void handleSave();
     void handleCancel();
@@ -45,6 +49,8 @@ private:
     QDateTimeEdit *m_startEdit = nullptr;
     QDateTimeEdit *m_endEdit = nullptr;
     QPlainTextEdit *m_descriptionEdit = nullptr;
+    QShortcut *m_saveLocationShortcut = nullptr;
+    QShortcut *m_saveDescriptionShortcut = nullptr;
     QPushButton *m_saveButton = nullptr;
     QPushButton *m_cancelButton = nullptr;
     QShortcut *m_saveShortcut = nullptr;

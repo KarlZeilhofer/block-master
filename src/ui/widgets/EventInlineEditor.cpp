@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QShortcut>
+#include <QKeyEvent>
 
 namespace calendar {
 namespace ui {
@@ -30,6 +31,7 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
 
     m_locationEdit = new QLineEdit(this);
     formLayout->addRow(tr("Ort"), m_locationEdit);
+    connect(m_locationEdit, &QLineEdit::returnPressed, this, &EventInlineEditor::handleSave);
 
     m_startEdit = new QDateTimeEdit(this);
     m_startEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd hh:mm"));
@@ -46,6 +48,19 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
     m_descriptionEdit = new QPlainTextEdit(this);
     m_descriptionEdit->setPlaceholderText(tr("Beschreibung"));
     formLayout->addRow(tr("Beschreibung"), m_descriptionEdit);
+    m_saveLocationShortcut = new QShortcut(QKeySequence(Qt::Key_Return), m_locationEdit);
+    m_saveLocationShortcut->setContext(Qt::WidgetShortcut);
+    connect(m_saveLocationShortcut, &QShortcut::activated, this, &EventInlineEditor::handleSave);
+    m_saveDescriptionShortcut = new QShortcut(QKeySequence(Qt::Key_Return), m_descriptionEdit);
+    m_saveDescriptionShortcut->setContext(Qt::WidgetShortcut);
+    connect(m_saveDescriptionShortcut, &QShortcut::activated, this, &EventInlineEditor::handleSave);
+    auto *descriptionShiftEnter = new QShortcut(QKeySequence(Qt::SHIFT | Qt::Key_Return), m_descriptionEdit);
+    descriptionShiftEnter->setContext(Qt::WidgetShortcut);
+    connect(descriptionShiftEnter, &QShortcut::activated, this, [this]() {
+        if (m_descriptionEdit) {
+            m_descriptionEdit->insertPlainText(QStringLiteral("\n"));
+        }
+    });
 
     layout->addLayout(formLayout);
 
@@ -61,9 +76,11 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
     connect(m_cancelButton, &QPushButton::clicked, this, &EventInlineEditor::handleCancel);
 
     m_saveShortcut = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_Return), this);
+    m_saveShortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(m_saveShortcut, &QShortcut::activated, this, &EventInlineEditor::handleSave);
 
     m_escapeShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
+    m_escapeShortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(m_escapeShortcut, &QShortcut::activated, this, &EventInlineEditor::handleSave);
 }
 
@@ -141,6 +158,16 @@ void EventInlineEditor::clearEditor()
     m_endEdit->setVisible(true);
     m_isTodo = false;
     setVisible(false);
+}
+
+void EventInlineEditor::keyPressEvent(QKeyEvent *event)
+{
+    if (event && event->key() == Qt::Key_Escape && event->modifiers() == Qt::NoModifier) {
+        handleSave();
+        event->accept();
+        return;
+    }
+    QWidget::keyPressEvent(event);
 }
 
 void EventInlineEditor::handleSave()
