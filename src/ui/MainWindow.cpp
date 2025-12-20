@@ -449,12 +449,12 @@ void MainWindow::refreshCalendar()
     if (m_calendarView) {
         m_calendarView->setEvents(m_scheduleViewModel->events());
     }
-    if (!m_selectedEvent.id.isNull()) {
-        if (auto latest = m_appContext->eventRepository().findById(m_selectedEvent.id)) {
+    if (m_selectedEvent.has_value()) {
+        if (auto latest = m_appContext->eventRepository().findById(m_selectedEvent->id)) {
             m_selectedEvent = *latest;
-            if (m_eventEditor && m_eventEditor->isVisible()) {
-                m_eventEditor->setEvent(*latest);
-            }
+    if (m_eventEditor && m_eventEditor->isVisible()) {
+        m_eventEditor->setEvent(*latest);
+    }
         } else {
             clearSelection();
         }
@@ -571,7 +571,7 @@ void MainWindow::applyEventResize(const QUuid &id, const QDateTime &newStart, co
     existing->start = newStart;
     existing->end = newEnd;
     m_appContext->eventRepository().updateEvent(*existing);
-    if (!m_selectedEvent.id.isNull() && m_selectedEvent.id == id && m_eventEditor) {
+    if (m_selectedEvent && m_selectedEvent->id == id && m_eventEditor) {
         m_eventEditor->setEvent(*existing);
     }
     refreshCalendar();
@@ -580,7 +580,7 @@ void MainWindow::applyEventResize(const QUuid &id, const QDateTime &newStart, co
 
 void MainWindow::clearSelection()
 {
-    m_selectedEvent = data::CalendarEvent();
+    m_selectedEvent.reset();
     m_selectedTodo.reset();
     if (m_editEventAction) {
         m_editEventAction->setEnabled(false);
@@ -633,7 +633,7 @@ void MainWindow::handleTodoSelectionChanged()
         if (hadTodo && m_eventEditor && m_eventEditor->isTodoMode()) {
             m_eventEditor->clearEditor();
         }
-        if (m_previewVisible && m_selectedEvent.id.isNull() && m_previewPanel) {
+        if (m_previewVisible && !m_selectedEvent.has_value() && m_previewPanel) {
             m_previewPanel->clearPreview();
             m_previewVisible = false;
         }
@@ -642,7 +642,7 @@ void MainWindow::handleTodoSelectionChanged()
     const auto sourceIndex = m_todoProxyModel->mapToSource(indexes.front());
     if (const auto *todo = m_todoViewModel->model()->todoAt(sourceIndex)) {
         m_selectedTodo = *todo;
-        m_selectedEvent = data::CalendarEvent();
+        m_selectedEvent.reset();
         if (m_editEventAction) {
             m_editEventAction->setEnabled(false);
         }
@@ -691,7 +691,7 @@ void MainWindow::handleEventDroppedToTodo(const data::CalendarEvent &event)
 
     m_appContext->todoRepository().addTodo(todo);
     m_appContext->eventRepository().removeEvent(event.id);
-    if (!m_selectedEvent.id.isNull() && m_selectedEvent.id == event.id) {
+    if (m_selectedEvent && m_selectedEvent->id == event.id) {
         clearSelection();
     }
     refreshTodos();
@@ -732,8 +732,8 @@ void MainWindow::openInlineEditor()
     if (m_previewPanel) {
         m_previewPanel->clearPreview();
     }
-    if (!m_selectedEvent.id.isNull()) {
-        m_eventEditor->setEvent(m_selectedEvent);
+    if (m_selectedEvent.has_value()) {
+        m_eventEditor->setEvent(*m_selectedEvent);
         m_eventEditor->setVisible(true);
         m_eventEditor->setFocus();
         return;
@@ -747,13 +747,13 @@ void MainWindow::openInlineEditor()
 
 void MainWindow::openDetailDialog()
 {
-    if (m_selectedEvent.id.isNull()) {
+    if (!m_selectedEvent.has_value()) {
         return;
     }
     if (!m_eventDetailDialog) {
         m_eventDetailDialog = std::make_unique<EventDetailDialog>(this);
     }
-    m_eventDetailDialog->setEvent(m_selectedEvent);
+    m_eventDetailDialog->setEvent(*m_selectedEvent);
     if (m_eventDetailDialog->exec() == QDialog::Accepted) {
         auto updated = m_eventDetailDialog->event();
         m_appContext->eventRepository().updateEvent(updated);
@@ -771,7 +771,7 @@ void MainWindow::togglePreviewPanel()
     if (!m_previewPanel) {
         return;
     }
-    const bool hasEvent = !m_selectedEvent.id.isNull();
+    const bool hasEvent = m_selectedEvent.has_value();
     const bool hasTodo = m_selectedTodo.has_value();
     if (!hasEvent && !hasTodo) {
         return;
@@ -793,8 +793,8 @@ void MainWindow::showPreviewForSelection()
     if (!m_previewPanel) {
         return;
     }
-    if (!m_selectedEvent.id.isNull()) {
-        m_previewPanel->setEvent(m_selectedEvent);
+    if (m_selectedEvent.has_value()) {
+        m_previewPanel->setEvent(*m_selectedEvent);
         m_previewVisible = true;
         return;
     }
@@ -814,12 +814,12 @@ void MainWindow::showSelectionHint()
 
 void MainWindow::copySelection()
 {
-    if (m_selectedEvent.id.isNull()) {
+    if (!m_selectedEvent.has_value()) {
         return;
     }
     m_clipboardEvents.clear();
-    m_clipboardEvents.push_back(m_selectedEvent);
-    statusBar()->showMessage(tr("Termin kopiert: %1").arg(m_selectedEvent.title), 1500);
+    m_clipboardEvents.push_back(*m_selectedEvent);
+    statusBar()->showMessage(tr("Termin kopiert: %1").arg(m_selectedEvent->title), 1500);
 }
 
 void MainWindow::pasteClipboard()
@@ -843,10 +843,10 @@ void MainWindow::pasteClipboard()
 
 void MainWindow::duplicateSelection()
 {
-    if (m_selectedEvent.id.isNull()) {
+    if (!m_selectedEvent.has_value()) {
         return;
     }
-    m_clipboardEvents = { m_selectedEvent };
+    m_clipboardEvents = { *m_selectedEvent };
     pasteClipboard();
 }
 
@@ -896,17 +896,17 @@ void MainWindow::cancelPendingPlacement()
 
 void MainWindow::deleteSelection()
 {
-    if (m_selectedEvent.id.isNull()) {
+    if (!m_selectedEvent.has_value()) {
         return;
     }
     if (m_eventEditor) {
         m_eventEditor->clearEditor();
     }
     cancelPendingPlacement();
-    const bool removed = m_appContext->eventRepository().removeEvent(m_selectedEvent.id);
+    const bool removed = m_appContext->eventRepository().removeEvent(m_selectedEvent->id);
     if (removed) {
         statusBar()->showMessage(tr("Termin gelöscht"), 2000);
-        m_selectedEvent = data::CalendarEvent();
+        m_selectedEvent.reset();
         if (m_previewPanel) {
             m_previewPanel->clearPreview();
         }

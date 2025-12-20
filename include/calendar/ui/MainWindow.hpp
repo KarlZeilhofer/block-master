@@ -98,7 +98,7 @@ private:
     bool m_previewVisible = false;
     QDate m_currentDate;
     int m_visibleDays = 9;
-    data::CalendarEvent m_selectedEvent;
+    std::optional<data::CalendarEvent> m_selectedEvent;
     std::optional<data::TodoItem> m_selectedTodo;
     QDateTime m_lastHoverDateTime;
     std::vector<data::CalendarEvent> m_clipboardEvents;
