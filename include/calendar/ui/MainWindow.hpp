@@ -49,6 +49,8 @@ private:
     void setupShortcuts(QToolBar *toolbar);
     void saveTodoSplitterState() const;
     void restoreTodoSplitterState();
+    void saveCalendarState() const;
+    void restoreCalendarState();
     TodoFilterProxyModel *proxyForView(QListView *view) const;
     void handleTodoSelectionChanged(TodoListView *view);
     void clearOtherTodoSelections(QListView *except);
@@ -119,6 +121,7 @@ private:
     bool m_previewVisible = false;
     QDate m_currentDate;
     int m_visibleDays = 9;
+    double m_savedHourHeight = 60.0;
     std::optional<data::CalendarEvent> m_selectedEvent;
     std::optional<data::TodoItem> m_selectedTodo;
     QDateTime m_lastHoverDateTime;

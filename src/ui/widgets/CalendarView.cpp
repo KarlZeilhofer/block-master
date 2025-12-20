@@ -189,6 +189,13 @@ void CalendarView::zoomTime(double factor)
     viewport()->update();
 }
 
+void CalendarView::setHourHeight(double height)
+{
+    m_hourHeight = qBound(MinHourHeight, height, MaxHourHeight);
+    updateScrollBars();
+    viewport()->update();
+}
+
 bool CalendarView::showMonthBand() const
 {
     return m_dayWidth < 75.0;

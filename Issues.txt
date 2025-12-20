@@ -2,9 +2,6 @@ Issues ###########################
 
 Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
 
-Merke dir die letzte Ansicht (erster Tag, Zoomlevel) in QSettings. 
-Oranization: "Zellhoff", Domain: "zellhoff.at", Appname: "Task Master"
-
 
 Entfernen von TODOs per Delete-Taste
 
@@ -55,9 +52,14 @@ Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position veränder
 
 WIP ################################
 
+Die Uhrzeit-Labels sind schlecht platziert, sehr uneindeutig. 
+Unterbrich die horizontale Gitterlinie links vom ersten Tag (lass einen Stummel mit 5 Pixel stehen) und schreib vertikal zentriert links von dem Stummel die Uhrzeit. 0 und 24 Uhr müssen speziell behandelt werden: 0 Uhr ist oben bündig, 24 Uhr ist unten bündig mit der Gitterlinie. 
 
 
 DONE ###############################
+
+Merke dir die letzte Ansicht (erster Tag, Zoomlevel) in QSettings. 
+Oranization: "Zellhoff", Domain: "zellhoff.at", Appname: "Block Master"
 
 Die App soll umbenann werden von "Task Master" auf "Block Master"
 

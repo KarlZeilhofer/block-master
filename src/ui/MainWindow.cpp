@@ -262,6 +262,7 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
     m_currentDate = alignToWeekStart(QDate::currentDate());
+    restoreCalendarState();
     setupUi();
     refreshTodos();
     refreshCalendar();
@@ -269,6 +270,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    saveCalendarState();
     saveTodoSplitterState();
 }
 
@@ -460,6 +462,7 @@ QWidget *MainWindow::createCalendarView()
     layout->setSpacing(0);
 
     m_calendarView = new CalendarView(panel);
+    m_calendarView->setHourHeight(m_savedHourHeight);
     connect(m_calendarView, &CalendarView::eventActivated, this, [this](const data::CalendarEvent &event) {
         statusBar()->showMessage(tr("Termin: %1, %2").arg(event.title, event.start.toString()), 2500);
     });
@@ -598,7 +601,7 @@ void MainWindow::saveTodoSplitterState() const
     if (!m_todoSplitter) {
         return;
     }
-    QSettings settings(QStringLiteral("BlockMaster"), QStringLiteral("BlockMaster"));
+    QSettings settings;
     QVariantList serialized;
     for (int size : m_todoSplitter->sizes()) {
         serialized << size;
@@ -611,7 +614,7 @@ void MainWindow::restoreTodoSplitterState()
     if (!m_todoSplitter) {
         return;
     }
-    QSettings settings(QStringLiteral("BlockMaster"), QStringLiteral("BlockMaster"));
+    QSettings settings;
     const QVariant value = settings.value(QStringLiteral("ui/todoSplitterSizes"));
     if (!value.isValid()) {
         return;
@@ -627,6 +630,30 @@ void MainWindow::restoreTodoSplitterState()
     }
     if (sizes.size() == m_todoSplitter->count()) {
         m_todoSplitter->setSizes(sizes);
+    }
+}
+
+void MainWindow::saveCalendarState() const
+{
+    QSettings settings;
+    settings.setValue(QStringLiteral("calendar/startDate"), m_currentDate);
+    settings.setValue(QStringLiteral("calendar/visibleDays"), m_visibleDays);
+    const double storedHeight = m_calendarView ? m_calendarView->hourHeight() : m_savedHourHeight;
+    settings.setValue(QStringLiteral("calendar/hourHeight"), storedHeight);
+}
+
+void MainWindow::restoreCalendarState()
+{
+    QSettings settings;
+    const QDate storedStart = settings.value(QStringLiteral("calendar/startDate")).toDate();
+    if (storedStart.isValid()) {
+        m_currentDate = alignToWeekStart(storedStart);
+    }
+    const int storedDays = settings.value(QStringLiteral("calendar/visibleDays"), m_visibleDays).toInt();
+    m_visibleDays = qBound(1, storedDays, 31);
+    const double storedHeight = settings.value(QStringLiteral("calendar/hourHeight"), m_savedHourHeight).toDouble();
+    if (storedHeight > 0.0) {
+        m_savedHourHeight = storedHeight;
     }
 }
 
@@ -861,6 +888,7 @@ void MainWindow::updateCalendarRange()
                                           end.toString(Qt::ISODate))
                                      .arg(m_visibleDays));
     }
+    saveCalendarState();
 }
 
 void MainWindow::zoomCalendarHorizontally(bool in)

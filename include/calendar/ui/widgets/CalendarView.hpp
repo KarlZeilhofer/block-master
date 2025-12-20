@@ -27,6 +27,8 @@ public:
     void setDateRange(const QDate &start, int days);
     void setEvents(std::vector<data::CalendarEvent> events);
     void zoomTime(double factor);
+    double hourHeight() const { return m_hourHeight; }
+    void setHourHeight(double height);
 signals:
     void dayZoomRequested(bool zoomIn);
     void dayScrollRequested(int dayDelta);
