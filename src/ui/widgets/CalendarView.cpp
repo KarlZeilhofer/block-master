@@ -17,6 +17,7 @@
 #include <QIODevice>
 #include <QWheelEvent>
 #include <algorithm>
+#include <map>
 
 namespace calendar {
 namespace ui {
@@ -90,11 +91,15 @@ void CalendarView::paintEvent(QPaintEvent *event)
     painter.setPen(palette().dark().color());
     painter.drawLine(QPointF(0, m_headerHeight - 0.5), QPointF(viewport()->width(), m_headerHeight - 0.5));
 
+    std::map<double, QColor> highlightLines;
+    const QDate today = QDate::currentDate();
+
     for (int day = 0; day < m_dayCount; ++day) {
         const double x = m_timeAxisWidth + day * m_dayWidth;
         QRectF headerRect(x, 0, m_dayWidth, m_headerHeight);
         const QDate date = m_startDate.addDays(day);
         const bool isSunday = date.dayOfWeek() == 7;
+        const bool isToday = date == today;
         QColor headerColor = palette().alternateBase().color();
         QColor textColor = palette().windowText().color();
         if (isSunday) {
@@ -130,7 +135,16 @@ void CalendarView::paintEvent(QPaintEvent *event)
         QRectF monthRect(infoRect.left(), infoRect.center().y(), infoRect.width(), infoRect.height() / 2);
         painter.drawText(weekdayRect, Qt::AlignLeft | Qt::AlignVCenter, weekdayText);
         painter.drawText(monthRect, Qt::AlignLeft | Qt::AlignVCenter, monthYearText);
+
+        if (isToday) {
+            highlightLines[x] = QColor(0, 150, 0);
+            highlightLines[x + m_dayWidth] = QColor(0, 150, 0);
+        }
+        if (date.day() == 1 && highlightLines.find(x) == highlightLines.end()) {
+            highlightLines[x] = Qt::black;
+        }
     }
+
     painter.setPen(palette().dark().color());
 
     const double clipHeight = qMax(0.0, static_cast<double>(viewport()->height()) - m_headerHeight);
@@ -219,6 +233,14 @@ void CalendarView::paintEvent(QPaintEvent *event)
     }
 
     painter.restore();
+
+    if (!highlightLines.empty()) {
+        for (const auto &[lineX, color] : highlightLines) {
+            QPen highlightPen(color, 3);
+            painter.setPen(highlightPen);
+            painter.drawLine(QPointF(lineX, 0), QPointF(lineX, viewport()->height()));
+        }
+    }
 }
 
 void CalendarView::resizeEvent(QResizeEvent *event)
