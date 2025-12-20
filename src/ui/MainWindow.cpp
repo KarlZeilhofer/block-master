@@ -8,13 +8,16 @@
 #include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QEvent>
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QDebug>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
 #include <QItemSelectionModel>
+#include <QKeyEvent>
 #include <QLocale>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
@@ -397,6 +400,7 @@ QWidget *MainWindow::createTodoPanel()
             m_calendarView->setEventSearchFilter(text);
         }
     });
+    m_todoSearchField->installEventFilter(this);
     m_eventSearchFilter = m_todoSearchField->text();
 
     layout->addLayout(headerLayout);
@@ -619,6 +623,16 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
     auto *redoShortcut = new QShortcut(QKeySequence::Redo, this);
     redoShortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(redoShortcut, &QShortcut::activated, this, &MainWindow::performRedo);
+
+    auto *focusSearchShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_F), this);
+    focusSearchShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(focusSearchShortcut, &QShortcut::activated, this, [this]() {
+        if (!m_todoSearchField) {
+            return;
+        }
+        m_todoSearchField->setFocus(Qt::ShortcutFocusReason);
+        m_todoSearchField->selectAll();
+    });
 }
 
 void MainWindow::saveTodoSplitterState() const
@@ -1606,6 +1620,33 @@ void MainWindow::performRedo()
     refreshTodos();
     refreshCalendar();
     statusBar()->showMessage(tr("Aktion wiederholt"), 2000);
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_todoSearchField && event) {
+        if (event->type() == QEvent::ShortcutOverride) {
+            auto *keyEvent = static_cast<QKeyEvent *>(event);
+            if (keyEvent->key() == Qt::Key_Escape) {
+                if (!m_todoSearchField->text().isEmpty()) {
+                    m_todoSearchField->clear();
+                }
+                event->accept();
+                return true;
+            }
+        } else if (event->type() == QEvent::KeyPress) {
+            auto *keyEvent = static_cast<QKeyEvent *>(event);
+            qDebug() << "[MainWindow] search field key event" << keyEvent->key();
+            if (keyEvent->key() == Qt::Key_Escape) {
+                qDebug() << "[MainWindow] clearing search via ESC";
+                if (!m_todoSearchField->text().isEmpty()) {
+                    m_todoSearchField->clear();
+                }
+                return true;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 QDateTime MainWindow::snapToQuarterHour(const QDateTime &dt) const

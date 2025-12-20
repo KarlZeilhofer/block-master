@@ -47,9 +47,11 @@ Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position veränder
 
 WIP ################################
 
-
-
 DONE ###############################
+
+Wenn der Cursor in der Suchleiste steht, und dann Strg+N gedrückt wird, dann soll der Text in der Suchleiste für das neue Issue übernommen werden. Der Text in der Suchleist verbleibt dort. Somit ist nur das neue Todo sichtbar, und es kann gleich ausgewählt und in den Kalender gezogen werden. 
+Das Erstellungsfeld für TODOs soll als Plain Textedit ausgeführt werden, und sich so verhalten wie es für den Copy/Paste verwendet wird. D.h. man kann direkt Dauer und Beschreibung und Ort mit integrieren, ohne explizite Eingabefelder verwenden zu müssen. 
+ESC löscht die Suchfeldeingabe, Strg+F springt in die Suchfeldeingabe und selektiert den Text. 
 
 Das Suchfeld soll nun auch auf die Darstellung der Events wirken. Events, die nicht unter die suchergebnisse fallen, werden hellgrau dargestellt. Treffer bleiben in der ursprünglichen Farbdarstellung. 
 

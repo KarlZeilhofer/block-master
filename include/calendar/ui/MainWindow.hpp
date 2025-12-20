@@ -106,6 +106,7 @@ private:
     QString todosToPlainText(const QList<data::TodoItem> &todos) const;
     void performUndo();
     void performRedo();
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;
