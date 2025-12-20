@@ -1,17 +1,5 @@
 Issues ###########################
 
-Ein Spezieller Einfüge-Modus soll aus einem Plaintext (z.B. aus einem Texteditor) pro Zeile ein TODO erzeugen können. 
-Ist das Erste Zeichen ein Tabulator, dann ist es eine Zeile in der Beschreibung zum TODO. Beispiel:
-
-----------------
-Einkaufen gehen 2h
-    Eier
-    Milch
-    Wein
-Autoreifen kaufen
-    19 Zoll, 245/60/R19
------------------
-Findest du im Titel eine Zeitangabe, wie 3h, 30min, 1,5h oder ähnliches, dann entspricht das der Dauer. 
 
 
 Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
@@ -57,6 +45,29 @@ Gemeinsames Verhalten:
 Zeige die aktuelle Uhrzeit als horizontale Linie am heutigen Tag in roter Farbe. 
 
 WIP ################################
+
+Ein Spezieller Einfüge-Modus soll aus einem Plaintext (z.B. aus einem Texteditor) pro Zeile ein TODO erzeugen können. 
+Ist das Erste Zeichen ein Tabulator, dann ist es eine Zeile in der Beschreibung zum TODO. Beispiel:
+
+----------------
+Einkaufen gehen 2h
+    Eier
+    Milch
+    Wein
+Autoreifen kaufen
+    19 Zoll, 245/60/R19
+    Ort: Forstinger
+-----------------
+Findest du im Titel eine Zeitangabe, wie 3h, 30min, 1,5h oder ähnliches, dann entspricht das der Dauer. 
+Tabs oder sonstige nicht darstellbare Zeichen werden entfernt, wobei führende Tabs oder Leerzeichen dafür verwendet werden, um die Beschreibung zu markieren. Diese Zeichen sind dann nach dem Einfügen aber nicht mehr im Text enthalten. 
+Ein Ort kann mit Einrückung plus "Ort" gekennzeichnet werden. Die restliche Zeile wird dann bereinigt in das Feld "Location" eingetragen. 
+
+Dieser Einfügemodus soll über Rechts-Klick, "Einfügen aus Plaintext" machbar sein, in der jeweiligen TODO-Liste. 
+Da dies ein gravierender Eingriff ist, braucht es unbedingt ein Undo mit Strg+Z. 
+
+Umgekehrt soll in gleicher Weise eine Auswahl (mulit-select möglich) per Strg+C als Plaintext in die Zwischenablage kopiert werden können. 
+
+Hast du noch Fragen?
 
 
 DONE ###############################
