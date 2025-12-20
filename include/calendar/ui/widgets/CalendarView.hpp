@@ -25,6 +25,7 @@ public:
     void zoomTime(double factor);
 signals:
     void dayZoomRequested(bool zoomIn);
+    void dayScrollRequested(int dayDelta);
 
     void eventActivated(const data::CalendarEvent &event);
     void hoveredDateTime(const QDateTime &dateTime);
@@ -99,6 +100,7 @@ private:
     QString m_externalPlacementLabel;
     QUuid m_hoverTopHandleId;
     QUuid m_hoverBottomHandleId;
+    double m_horizontalScrollRemainder = 0.0;
 };
 
 } // namespace ui

@@ -57,6 +57,7 @@ private:
     void zoomCalendarHorizontally(bool in);
     void zoomCalendarVertically(bool in);
     void setVisibleDayCount(int days);
+    void scrollVisibleDays(int deltaDays);
     void handleEventSelected(const data::CalendarEvent &event);
     void saveEventEdits(const data::CalendarEvent &event);
     void applyEventResize(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd);

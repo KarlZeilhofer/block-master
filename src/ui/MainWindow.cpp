@@ -219,6 +219,7 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::eventDropRequested, this, &MainWindow::handleEventDropRequested);
     connect(m_calendarView, &CalendarView::externalPlacementConfirmed, this, &MainWindow::handlePlacementConfirmed);
     connect(m_calendarView, &CalendarView::dayZoomRequested, this, &MainWindow::zoomCalendarHorizontally);
+    connect(m_calendarView, &CalendarView::dayScrollRequested, this, &MainWindow::scrollVisibleDays);
 
     m_eventEditor = new EventInlineEditor(panel);
     m_eventEditor->setVisible(false);
@@ -332,7 +333,12 @@ void MainWindow::goToday()
 
 void MainWindow::navigateForward()
 {
-    m_currentDate = alignToWeekStart(m_currentDate).addDays(7);
+    const QDate aligned = alignToWeekStart(m_currentDate);
+    if (m_currentDate != aligned) {
+        m_currentDate = aligned;
+    } else {
+        m_currentDate = m_currentDate.addDays(7);
+    }
     updateCalendarRange();
     refreshCalendar();
     statusBar()->showMessage(tr("Weiter: %1").arg(m_currentDate.toString(Qt::ISODate)), 1500);
@@ -340,7 +346,12 @@ void MainWindow::navigateForward()
 
 void MainWindow::navigateBackward()
 {
-    m_currentDate = alignToWeekStart(m_currentDate).addDays(-7);
+    const QDate aligned = alignToWeekStart(m_currentDate);
+    if (m_currentDate != aligned) {
+        m_currentDate = aligned;
+    } else {
+        m_currentDate = m_currentDate.addDays(-7);
+    }
     updateCalendarRange();
     refreshCalendar();
     statusBar()->showMessage(tr("Zurück: %1").arg(m_currentDate.toString(Qt::ISODate)), 1500);
@@ -470,6 +481,19 @@ void MainWindow::zoomCalendarVertically(bool in)
         return;
     }
     m_calendarView->zoomTime(in ? 1.1 : 0.9);
+}
+
+void MainWindow::scrollVisibleDays(int deltaDays)
+{
+    if (deltaDays == 0) {
+        return;
+    }
+    m_currentDate = m_currentDate.addDays(deltaDays);
+    updateCalendarRange();
+    refreshCalendar();
+    statusBar()->showMessage(tr("Ansicht verschoben: %1")
+                                 .arg(m_currentDate.toString(Qt::ISODate)),
+                             1200);
 }
 
 void MainWindow::setVisibleDayCount(int days)

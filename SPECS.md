@@ -47,7 +47,7 @@ Hauptaufgaben:
 - **Monatsansicht**: Raster, horizontales Zoomen blendet zusätzliche Wochen (z. B. 2 vs. 6).
 - **Agenda/Listenansicht**: chronologische Tabelle mit Fokus auf Tastaturbedienung.
 - **Standardstart**: Beim Programmstart sowie nach `T` (Heute) zeigt der Kalender immer exakt 9 Tage, beginnend an einem Montag, damit stets auch Montag und Dienstag der Folgewoche sichtbar bleiben; der linke Tag ist generell auf Wochenanfang ausgerichtet. Die Spaltenbreiten passen sich automatisch an die Fensterbreite an, sodass diese 9 Tage (und alle anderen Zoomstufen) den vorhandenen Platz vollständig ausnutzen.
-- Zoominteraktion: Mausrad + Modifier, Touchpad-Pinch, dedizierte Tastenkürzel (`Ctrl++`, `Ctrl+-`, `Ctrl+Shift++` für vertikal). Standard-Scroll ohne Modifier bewegt die Ansicht vertikal in 15-Minuten-Schritten; horizontale Scrollleisten gibt es nicht, stattdessen springen Navigationstasten und Toolbar-Aktionen durch den Kalender. `Ctrl+Scroll` (oder die Toolbar-Buttons) ändern die Anzahl sichtbarer Tage zwischen 1 und 31 und sorgen so für horizontales Zoomen ohne Scrollbar.
+- Zoominteraktion: Mausrad + Modifier, Touchpad-Pinch, dedizierte Tastenkürzel (`Ctrl++`, `Ctrl+-`, `Ctrl+Shift++` für vertikal). Standard-Scroll ohne Modifier bewegt die Ansicht vertikal in 15-Minuten-Schritten; horizontale Scrollleisten gibt es nicht, stattdessen scrollt das horizontale Mausrad exakt einen Tag vor/zurück und löst damit eine „freischwebende“ Darstellung (nicht mehr zwangsweise Montag) aus. `Ctrl+Scroll` (oder die Toolbar-Buttons) ändern die Anzahl sichtbarer Tage zwischen 1 und 31 und sorgen für horizontales Zoomen ohne Scrollbar, `Shift+Scroll` zoomt vertikal.
 - Anzeige aktualisiert sich smooth (Scroll-Physik, Lazy Rendering bei >500 Events).
 
 ## 6. Editing-Flows
@@ -81,7 +81,7 @@ Hauptaufgaben:
 
 ## 7. Tastaturbedienung
 - Navigation:
-  - `←/→`: horizontaler Sprung (1 Tag in Tagesansicht, 1 Woche in Monatsansicht).
+  - `←/→`: verschieben den sichtbaren Zeitraum immer wochenweise (±7 Tage); befindet sich die Ansicht nicht auf einem Montag, richtet der erste Tastendruck die Darstellung zunächst auf den nächstgelegenen Wochenanfang aus, bevor weitere Sprünge erfolgen.
   - `↑/↓`: vertikales Scrollen (30 Minuten pro Schritt), bei Monatsansicht wechselt Woche.
   - `PgUp/PgDn`: größere Sprünge (Monat/Quartal).
   - `Home/End`: Anfang/Ende des sichtbaren Zeitraums.

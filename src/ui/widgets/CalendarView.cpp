@@ -202,6 +202,19 @@ void CalendarView::wheelEvent(QWheelEvent *event)
     }
     const QPoint angle = event->angleDelta();
     bool handled = false;
+    if (angle.x() != 0) {
+        m_horizontalScrollRemainder += static_cast<double>(angle.x()) / 120.0;
+        while (m_horizontalScrollRemainder >= 1.0) {
+            emit dayScrollRequested(-1);
+            m_horizontalScrollRemainder -= 1.0;
+            handled = true;
+        }
+        while (m_horizontalScrollRemainder <= -1.0) {
+            emit dayScrollRequested(1);
+            m_horizontalScrollRemainder += 1.0;
+            handled = true;
+        }
+    }
     if (angle.y() != 0) {
         const double steps = angle.y() / 120.0;
         const double delta = steps * (m_hourHeight * 0.25); // 15 Minuten
