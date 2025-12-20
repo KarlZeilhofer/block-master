@@ -341,19 +341,31 @@ void CalendarView::paintEvent(QPaintEvent *event)
     painter.setFont(originalFont);
     painter.setPen(palette().dark().color());
 
-    const double clipHeight = qMax(0.0, static_cast<double>(viewport()->height()) - totalHeaderHeight);
-    painter.save();
-    painter.setClipRect(QRectF(0, totalHeaderHeight, viewport()->width(), clipHeight));
-
-    painter.setPen(palette().mid().color());
+    const double leftBreak = qMax(0.0, m_timeAxisWidth - 5.0);
     for (int hour = 0; hour <= 24; ++hour) {
         const double y = bodyOriginY + hour * m_hourHeight;
         if (y < totalHeaderHeight - m_hourHeight || y > viewport()->height() + m_hourHeight) {
             continue;
         }
-        painter.drawLine(QPointF(0, y), QPointF(totalWidth, y));
-        painter.drawText(QRectF(0, y - m_hourHeight, m_timeAxisWidth - 4, m_hourHeight),
-                         Qt::AlignRight | Qt::AlignVCenter,
+        painter.setPen(palette().mid().color());
+        if (hour > 0) {
+            painter.drawLine(QPointF(leftBreak, y), QPointF(m_timeAxisWidth, y));
+        }
+
+        painter.setPen(palette().windowText().color());
+        QRectF labelRect(0, y - m_hourHeight / 2.0, leftBreak - 2.0, m_hourHeight);
+        Qt::Alignment alignment = Qt::AlignRight | Qt::AlignVCenter;
+        if (hour == 0) {
+            alignment = Qt::AlignRight | Qt::AlignTop;
+            labelRect.setTop(y);
+            labelRect.setBottom(y + m_hourHeight);
+        } else if (hour == 24) {
+            alignment = Qt::AlignRight | Qt::AlignBottom;
+            labelRect.setTop(y - m_hourHeight);
+            labelRect.setBottom(y);
+        }
+        painter.drawText(labelRect,
+                         alignment,
                          QStringLiteral("%1:00").arg(hour, 2, 10, QLatin1Char('0')));
     }
 
@@ -361,6 +373,20 @@ void CalendarView::paintEvent(QPaintEvent *event)
     for (int day = 0; day < m_dayCount; ++day) {
         const double x = m_timeAxisWidth + day * m_dayWidth;
         painter.drawRect(QRectF(x, bodyOriginY, m_dayWidth, bodyHeight));
+    }
+
+    const double clipHeight = qMax(0.0, static_cast<double>(viewport()->height()) - totalHeaderHeight);
+    const double clipWidth = qMax(0.0, static_cast<double>(viewport()->width()) - m_timeAxisWidth);
+    painter.save();
+    painter.setClipRect(QRectF(m_timeAxisWidth, totalHeaderHeight, clipWidth, clipHeight));
+
+    painter.setPen(palette().mid().color());
+    for (int hour = 0; hour <= 24; ++hour) {
+        const double y = bodyOriginY + hour * m_hourHeight;
+        if (y < totalHeaderHeight - m_hourHeight || y > viewport()->height() + m_hourHeight) {
+            continue;
+        }
+        painter.drawLine(QPointF(m_timeAxisWidth, y), QPointF(totalWidth, y));
     }
 
     painter.setRenderHint(QPainter::Antialiasing, true);
