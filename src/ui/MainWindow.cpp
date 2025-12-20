@@ -886,7 +886,7 @@ void MainWindow::handleEventDropRequested(const QUuid &eventId, const QDateTime 
     refreshCalendar();
 }
 
-void MainWindow::handleEventDroppedToTodo(const data::CalendarEvent &event)
+void MainWindow::handleEventDroppedToTodo(const data::CalendarEvent &event, data::TodoStatus status)
 {
     data::TodoItem todo;
     todo.title = event.title.isEmpty() ? tr("Termin %1").arg(QLocale().toString(event.start, QLocale::ShortFormat)) : event.title;
@@ -894,7 +894,7 @@ void MainWindow::handleEventDroppedToTodo(const data::CalendarEvent &event)
     todo.location = event.location;
     todo.dueDate = event.start;
     todo.priority = 0;
-    todo.status = data::TodoStatus::Pending;
+    todo.status = status;
     todo.scheduled = false;
 
     m_appContext->todoRepository().addTodo(todo);

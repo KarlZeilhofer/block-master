@@ -25,6 +25,7 @@ TodoListView::TodoListView(QWidget *parent)
 void TodoListView::setTargetStatus(data::TodoStatus status)
 {
     m_targetStatus = status;
+    setProperty("todoStatus", static_cast<int>(status));
 }
 
 data::TodoStatus TodoListView::targetStatus() const

@@ -11,6 +11,7 @@
 #include <QElapsedTimer>
 
 #include "calendar/data/Event.hpp"
+#include "calendar/data/Todo.hpp"
 
 namespace calendar {
 namespace ui {
@@ -38,7 +39,7 @@ signals:
     void todoDropped(const QUuid &todoId, const QDateTime &start);
     void eventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
     void externalPlacementConfirmed(const QDateTime &start);
-    void eventDroppedToTodo(const data::CalendarEvent &event);
+    void eventDroppedToTodo(const data::CalendarEvent &event, data::TodoStatus status);
     void eventCreationRequested(const QDateTime &start, const QDateTime &end);
 
 public:
@@ -84,7 +85,7 @@ private:
     void updateInternalEventDrag(const QPointF &scenePos);
     void finalizeInternalEventDrag(const QPointF &scenePos);
     void cancelInternalEventDrag();
-    bool cursorOverTodoList(const QPoint &globalPos) const;
+    std::optional<data::TodoStatus> todoStatusUnderCursor(const QPoint &globalPos) const;
     void startNewEventDrag();
     void updateNewEventDrag(const QPointF &scenePos);
     void finalizeNewEventDrag();

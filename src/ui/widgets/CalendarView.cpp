@@ -892,8 +892,8 @@ void CalendarView::finalizeInternalEventDrag(const QPointF &scenePos)
         return;
     }
     const QPoint globalPos = QCursor::pos();
-    if (cursorOverTodoList(globalPos)) {
-        emit eventDroppedToTodo(m_internalDragSource);
+    if (const auto status = todoStatusUnderCursor(globalPos)) {
+        emit eventDroppedToTodo(m_internalDragSource, status.value());
         cancelInternalEventDrag();
         return;
     }
@@ -926,16 +926,21 @@ void CalendarView::cancelInternalEventDrag()
     resetDragCandidate();
 }
 
-bool CalendarView::cursorOverTodoList(const QPoint &globalPos) const
+std::optional<data::TodoStatus> CalendarView::todoStatusUnderCursor(const QPoint &globalPos) const
 {
     QWidget *widget = QApplication::widgetAt(globalPos);
     while (widget) {
-        if (widget->objectName() == QLatin1String("todoList")) {
-            return true;
+        const QVariant value = widget->property("todoStatus");
+        if (value.isValid()) {
+            bool ok = false;
+            int statusValue = value.toInt(&ok);
+            if (ok) {
+                return static_cast<data::TodoStatus>(statusValue);
+            }
         }
-    widget = widget->parentWidget();
+        widget = widget->parentWidget();
     }
-    return false;
+    return std::nullopt;
 }
 
 void CalendarView::startNewEventDrag()

@@ -52,7 +52,6 @@ private:
     TodoFilterProxyModel *proxyForView(QListView *view) const;
     void handleTodoSelectionChanged(TodoListView *view);
     void clearOtherTodoSelections(QListView *except);
-    QListView *activeTodoView() const;
     void updateTodoFilterText(const QString &text);
     void handleTodoStatusDrop(const QList<QUuid> &todoIds, data::TodoStatus status);
     void clearAllTodoSelections();
@@ -76,8 +75,7 @@ private:
     void clearSelection();
     void handleTodoDropped(const QUuid &todoId, const QDateTime &start);
     void handleEventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
-    void handleEventDroppedToTodo(const data::CalendarEvent &event);
-    void handleTodoSelectionChanged();
+    void handleEventDroppedToTodo(const data::CalendarEvent &event, data::TodoStatus status);
     void handlePlacementConfirmed(const QDateTime &start);
     void handleHoveredDateTime(const QDateTime &dt);
     void handleEventCreationRequest(const QDateTime &start, const QDateTime &end);

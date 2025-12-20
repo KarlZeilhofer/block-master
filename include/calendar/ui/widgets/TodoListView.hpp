@@ -36,4 +36,3 @@ private:
 
 } // namespace ui
 } // namespace calendar
-
