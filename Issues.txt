@@ -52,6 +52,8 @@ WIP ################################
 DONE ###############################
 
 Grenzen zwei Event direkt aneinander, soll beim ersten keine "Endezeit" dargestellt werden. Dadurch wird die Darstellung sauberer und besser lesbar. 
+Wenn ein Event nur 1h oder kürzer ist, soll auch keine Ende-Zeit dargestellt werden. 
+
 
 Die Uhrzeit-Labels sind schlecht platziert, sehr uneindeutig. 
 Unterbrich die horizontale Gitterlinie links vom ersten Tag (lass einen Stummel mit 5 Pixel stehen) und schreib vertikal zentriert links von dem Stummel die Uhrzeit. 0 und 24 Uhr müssen speziell behandelt werden: 0 Uhr ist oben bündig, 24 Uhr ist unten bündig mit der Gitterlinie. 

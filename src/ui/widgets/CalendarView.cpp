@@ -471,13 +471,13 @@ void CalendarView::paintEvent(QPaintEvent *event)
             } else {
                 block = eventData.title;
             }
-            QRectF textRect = rect.adjusted(4, 2, -4, -rect.height() / 2);
-            painter.drawText(textRect,
-                             Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop,
-                             block);
+            QRectF textRect = rect.adjusted(4, 2, -4, -4);
+            QTextOption textOpt(Qt::AlignLeft | Qt::AlignTop);
+            textOpt.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+            painter.drawText(textRect, block, textOpt);
             infoDrawn = true;
 
-            bool showEndLabel = true;
+            bool showEndLabel = durationMinutes > 60;
             QString endLabel;
             if (segment.clipBottom) {
                 endLabel = QStringLiteral("...");
