@@ -107,6 +107,7 @@ private:
     void updateNewEventDrag(const QPointF &scenePos);
     void finalizeNewEventDrag();
     void cancelNewEventDrag();
+    void temporarilyDisableNewEventCreation();
     bool showMonthBand() const;
     double monthBandHeight() const;
     double totalHeaderHeight() const;

@@ -20,6 +20,7 @@
 #include <QWheelEvent>
 #include <QCoreApplication>
 #include <QCursor>
+#include <QTimer>
 #include <algorithm>
 #include <map>
 #include <QFontMetricsF>
@@ -222,6 +223,14 @@ void CalendarView::setVerticalScrollValue(int value)
     if (auto *vbar = verticalScrollBar()) {
         vbar->setValue(qBound(vbar->minimum(), value, vbar->maximum()));
     }
+}
+
+void CalendarView::temporarilyDisableNewEventCreation()
+{
+    m_allowNewEventCreation = false;
+    QTimer::singleShot(0, this, [this]() {
+        m_allowNewEventCreation = true;
+    });
 }
 
 bool CalendarView::showMonthBand() const
@@ -933,7 +942,7 @@ void CalendarView::dropEvent(QDropEvent *event)
         const int durationMinutes = entry->durationMinutes > 0 ? entry->durationMinutes : 60;
         dateTime = dateTime.addSecs(-placementOffsetMinutes(durationMinutes) * 60);
         emit todoDropped(entry->id, dateTime);
-        m_allowNewEventCreation = false;
+        temporarilyDisableNewEventCreation();
         event->setDropAction(Qt::MoveAction);
         event->accept();
         return;
@@ -956,7 +965,7 @@ void CalendarView::dropEvent(QDropEvent *event)
         dateTime = snapDateTime(dateTime);
         bool copy = event->keyboardModifiers().testFlag(Qt::ControlModifier);
         emit eventDropRequested(eventId, dateTime, copy);
-        m_allowNewEventCreation = false;
+        temporarilyDisableNewEventCreation();
         event->setDropAction(copy ? Qt::CopyAction : Qt::MoveAction);
         event->accept();
         return;
@@ -1332,7 +1341,7 @@ void CalendarView::finalizeInternalEventDrag(const QPointF &scenePos)
         target = snapDateTime(target);
         bool copy = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
         emit eventDropRequested(m_internalDragSource.id, target, copy);
-        m_allowNewEventCreation = false;
+        temporarilyDisableNewEventCreation();
     }
     cancelInternalEventDrag();
 }
