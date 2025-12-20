@@ -80,50 +80,90 @@ void CalendarView::paintEvent(QPaintEvent *event)
     QPainter painter(viewport());
     painter.fillRect(viewport()->rect(), palette().base());
 
-    const double totalHeight = m_hourHeight * 24.0;
-    const QRectF vpRect = viewport()->rect();
-    const double xOffset = horizontalScrollBar()->value();
     const double yOffset = verticalScrollBar()->value();
+    const double bodyHeight = m_hourHeight * 24.0;
+    const double bodyOriginY = m_headerHeight - yOffset;
+    const double totalWidth = m_timeAxisWidth + m_dayWidth * m_dayCount;
 
-    painter.translate(-xOffset, -yOffset);
+    // Header background (sticky)
+    painter.fillRect(QRectF(0, 0, viewport()->width(), m_headerHeight), palette().alternateBase());
+    painter.setPen(palette().dark().color());
+    painter.drawLine(QPointF(0, m_headerHeight - 0.5), QPointF(viewport()->width(), m_headerHeight - 0.5));
 
-    const QRectF drawingRect(0, 0, m_timeAxisWidth + m_dayWidth * m_dayCount, m_headerHeight + totalHeight);
+    for (int day = 0; day < m_dayCount; ++day) {
+        const double x = m_timeAxisWidth + day * m_dayWidth;
+        QRectF headerRect(x, 0, m_dayWidth, m_headerHeight);
+        const QDate date = m_startDate.addDays(day);
+        const bool isSunday = date.dayOfWeek() == 7;
+        QColor headerColor = palette().alternateBase().color();
+        QColor textColor = palette().windowText().color();
+        if (isSunday) {
+            headerColor = QColor(255, 235, 235);
+            textColor = QColor(200, 40, 40);
+        }
+        painter.fillRect(headerRect, headerColor);
+        painter.setPen(palette().dark().color());
+        painter.drawRect(headerRect);
+        painter.setPen(textColor);
+
+        const QString dayText = QLocale().toString(date, QStringLiteral("dd"));
+        const QString weekdayText = QLocale().toString(date, QStringLiteral("dddd"));
+        const QString monthYearText = QLocale().toString(date, QStringLiteral("MMMM yyyy"));
+
+        const double padding = 6.0;
+        QRectF contentRect = headerRect.adjusted(padding, padding / 2, -padding, -padding / 2);
+        const double dayBlockWidth = qMax(40.0, contentRect.width() * 0.35);
+        QRectF dayRect(contentRect.left(), contentRect.top(), dayBlockWidth, contentRect.height());
+        QRectF infoRect(dayRect.right() + padding, contentRect.top(), contentRect.width() - dayBlockWidth - padding, contentRect.height());
+
+        QFont baseFont = painter.font();
+        QFont dayFont = baseFont;
+        dayFont.setBold(true);
+        dayFont.setPointSizeF(dayFont.pointSizeF() * 1.5);
+        painter.setFont(dayFont);
+        painter.drawText(dayRect, Qt::AlignLeft | Qt::AlignVCenter, dayText);
+
+        QFont infoFont = baseFont;
+        infoFont.setBold(false);
+        painter.setFont(infoFont);
+        QRectF weekdayRect(infoRect.left(), infoRect.top(), infoRect.width(), infoRect.height() / 2);
+        QRectF monthRect(infoRect.left(), infoRect.center().y(), infoRect.width(), infoRect.height() / 2);
+        painter.drawText(weekdayRect, Qt::AlignLeft | Qt::AlignVCenter, weekdayText);
+        painter.drawText(monthRect, Qt::AlignLeft | Qt::AlignVCenter, monthYearText);
+    }
+    painter.setPen(palette().dark().color());
+
+    const double clipHeight = qMax(0.0, static_cast<double>(viewport()->height()) - m_headerHeight);
+    painter.save();
+    painter.setClipRect(QRectF(0, m_headerHeight, viewport()->width(), clipHeight));
 
     painter.setPen(palette().mid().color());
-    // Horizontal hour lines.
     for (int hour = 0; hour <= 24; ++hour) {
-        const double y = m_headerHeight + hour * m_hourHeight;
-        if (!drawingRect.intersects(QRectF(0, y - m_hourHeight, drawingRect.width(), m_hourHeight * 2))) {
+        const double y = bodyOriginY + hour * m_hourHeight;
+        if (y < m_headerHeight - m_hourHeight || y > viewport()->height() + m_hourHeight) {
             continue;
         }
-        painter.drawLine(QPointF(0, y), QPointF(drawingRect.width(), y));
+        painter.drawLine(QPointF(0, y), QPointF(totalWidth, y));
         painter.drawText(QRectF(0, y - m_hourHeight, m_timeAxisWidth - 4, m_hourHeight),
                          Qt::AlignRight | Qt::AlignVCenter,
                          QStringLiteral("%1:00").arg(hour, 2, 10, QLatin1Char('0')));
     }
 
-    // Day columns
+    painter.setPen(palette().dark().color());
     for (int day = 0; day < m_dayCount; ++day) {
         const double x = m_timeAxisWidth + day * m_dayWidth;
-        const QRectF columnRect(x, 0, m_dayWidth, m_headerHeight + totalHeight);
-        if (!vpRect.translated(xOffset, yOffset).intersects(columnRect)) {
-            continue;
-        }
-        painter.fillRect(QRectF(x, 0, m_dayWidth, m_headerHeight), palette().alternateBase());
-        painter.setPen(palette().dark().color());
-        painter.drawRect(QRectF(x, 0, m_dayWidth, m_headerHeight + totalHeight));
-
-        const QDate date = m_startDate.addDays(day);
-        painter.drawText(QRectF(x, 0, m_dayWidth, m_headerHeight),
-                         Qt::AlignCenter,
-                         QLocale().toString(date, QLocale::LongFormat));
+        painter.drawRect(QRectF(x, bodyOriginY, m_dayWidth, bodyHeight));
     }
 
-    // Events
     painter.setRenderHint(QPainter::Antialiasing, true);
+    const QRectF visibleRect(m_timeAxisWidth,
+                             m_headerHeight - m_hourHeight,
+                             qMax(0.0, static_cast<double>(viewport()->width()) - m_timeAxisWidth),
+                             viewport()->height() - m_headerHeight + m_hourHeight * 2);
     for (const auto &eventData : m_events) {
-        const QRectF rect = eventRect(eventData);
-        if (!rect.translated(0, 0).intersects(vpRect.translated(xOffset, yOffset))) {
+        QRectF rect = eventRect(eventData);
+        rect.translate(0, -yOffset);
+        if (!rect.intersects(visibleRect)) {
             continue;
         }
 
@@ -168,14 +208,17 @@ void CalendarView::paintEvent(QPaintEvent *event)
     }
 
     if (m_showDropPreview && m_dropPreviewRect.isValid()) {
+        QRectF previewRect = m_dropPreviewRect.translated(0, -yOffset);
         painter.setBrush(QColor(100, 149, 237, 120));
         painter.setPen(QPen(palette().highlight().color(), 1, Qt::DashLine));
-        painter.drawRoundedRect(m_dropPreviewRect, 4, 4);
+        painter.drawRoundedRect(previewRect, 4, 4);
         painter.setPen(Qt::white);
-        painter.drawText(m_dropPreviewRect.adjusted(4, 2, -4, -2),
+        painter.drawText(previewRect.adjusted(4, 2, -4, -2),
                          Qt::AlignLeft | Qt::AlignTop,
                          m_dropPreviewText);
     }
+
+    painter.restore();
 }
 
 void CalendarView::resizeEvent(QResizeEvent *event)
@@ -518,13 +561,14 @@ QRectF CalendarView::eventRect(const data::CalendarEvent &event) const
 
 void CalendarView::updateScrollBars()
 {
-    const double totalHeight = m_headerHeight + m_hourHeight * 24.0;
+    const double bodyHeight = m_hourHeight * 24.0;
+    const int pageStep = qMax(1, static_cast<int>(viewport()->height() - m_headerHeight));
     horizontalScrollBar()->setRange(0, 0);
     horizontalScrollBar()->setPageStep(viewport()->width());
     horizontalScrollBar()->setValue(0);
 
-    verticalScrollBar()->setRange(0, qMax(0, static_cast<int>(totalHeight - viewport()->height())));
-    verticalScrollBar()->setPageStep(viewport()->height());
+    verticalScrollBar()->setRange(0, qMax(0, static_cast<int>(bodyHeight - pageStep)));
+    verticalScrollBar()->setPageStep(pageStep);
 }
 
 void CalendarView::selectEventAt(const QPoint &pos)
