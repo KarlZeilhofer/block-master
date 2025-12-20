@@ -46,7 +46,8 @@ Hauptaufgaben:
 - **Wochen-/Arbeitswochenansicht**: 7 bzw. 5 Spalten, horizontaler Zoom ändert Anzahl sichtbarer Tage (3–14).
 - **Monatsansicht**: Raster, horizontales Zoomen blendet zusätzliche Wochen (z. B. 2 vs. 6).
 - **Agenda/Listenansicht**: chronologische Tabelle mit Fokus auf Tastaturbedienung.
-- Zoominteraktion: Mausrad + Modifier, Touchpad-Pinch, dedizierte Tastenkürzel (`Ctrl++`, `Ctrl+-`, `Ctrl+Shift++` für vertikal). Standard-Scroll ohne Modifier bewegt die Ansicht vertikal in 15-Minuten-Schritten und horizontal um ein Viertel Tag, damit auch ohne Zoom präzise navigiert werden kann.
+- **Standardstart**: Beim Programmstart sowie nach `T` (Heute) zeigt der Kalender immer exakt 9 Tage, beginnend an einem Montag, damit stets auch Montag und Dienstag der Folgewoche sichtbar bleiben; der linke Tag ist generell auf Wochenanfang ausgerichtet. Die Spaltenbreiten passen sich automatisch an die Fensterbreite an, sodass diese 9 Tage (und alle anderen Zoomstufen) den vorhandenen Platz vollständig ausnutzen.
+- Zoominteraktion: Mausrad + Modifier, Touchpad-Pinch, dedizierte Tastenkürzel (`Ctrl++`, `Ctrl+-`, `Ctrl+Shift++` für vertikal). Standard-Scroll ohne Modifier bewegt die Ansicht vertikal in 15-Minuten-Schritten; horizontale Scrollleisten gibt es nicht, stattdessen springen Navigationstasten und Toolbar-Aktionen durch den Kalender. `Ctrl+Scroll` (oder die Toolbar-Buttons) ändern die Anzahl sichtbarer Tage zwischen 1 und 31 und sorgen so für horizontales Zoomen ohne Scrollbar.
 - Anzeige aktualisiert sich smooth (Scroll-Physik, Lazy Rendering bei >500 Events).
 
 ## 6. Editing-Flows

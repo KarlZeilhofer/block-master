@@ -56,6 +56,7 @@ private:
     void updateCalendarRange();
     void zoomCalendarHorizontally(bool in);
     void zoomCalendarVertically(bool in);
+    void setVisibleDayCount(int days);
     void handleEventSelected(const data::CalendarEvent &event);
     void saveEventEdits(const data::CalendarEvent &event);
     void applyEventResize(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd);
@@ -76,6 +77,7 @@ private:
     QDateTime snapToQuarterHour(const QDateTime &dt) const;
     void cancelPendingPlacement();
     void deleteSelection();
+    QDate alignToWeekStart(const QDate &date) const;
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;
@@ -89,7 +91,7 @@ private:
     std::unique_ptr<EventDetailDialog> m_eventDetailDialog;
     bool m_previewVisible = false;
     QDate m_currentDate;
-    int m_visibleDays = 5;
+    int m_visibleDays = 9;
     data::CalendarEvent m_selectedEvent;
     QDateTime m_lastHoverDateTime;
     std::vector<data::CalendarEvent> m_clipboardEvents;

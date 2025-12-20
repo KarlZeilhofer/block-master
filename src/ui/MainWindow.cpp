@@ -46,7 +46,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_todoProxyModel(std::make_unique<TodoFilterProxyModel>())
     , m_scheduleViewModel(std::make_unique<ScheduleViewModel>(m_appContext->eventRepository()))
 {
-    m_currentDate = QDate::currentDate();
+    m_currentDate = alignToWeekStart(QDate::currentDate());
     setupUi();
     refreshTodos();
     refreshCalendar();
@@ -218,6 +218,7 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::todoDropped, this, &MainWindow::handleTodoDropped);
     connect(m_calendarView, &CalendarView::eventDropRequested, this, &MainWindow::handleEventDropRequested);
     connect(m_calendarView, &CalendarView::externalPlacementConfirmed, this, &MainWindow::handlePlacementConfirmed);
+    connect(m_calendarView, &CalendarView::dayZoomRequested, this, &MainWindow::zoomCalendarHorizontally);
 
     m_eventEditor = new EventInlineEditor(panel);
     m_eventEditor->setVisible(false);
@@ -323,7 +324,7 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
 
 void MainWindow::goToday()
 {
-    m_currentDate = QDate::currentDate();
+    m_currentDate = alignToWeekStart(QDate::currentDate());
     updateCalendarRange();
     refreshCalendar();
     statusBar()->showMessage(tr("Heute ausgewählt: %1").arg(m_currentDate.toString(Qt::ISODate)), 2000);
@@ -331,7 +332,7 @@ void MainWindow::goToday()
 
 void MainWindow::navigateForward()
 {
-    m_currentDate = m_currentDate.addDays(m_visibleDays);
+    m_currentDate = alignToWeekStart(m_currentDate).addDays(7);
     updateCalendarRange();
     refreshCalendar();
     statusBar()->showMessage(tr("Weiter: %1").arg(m_currentDate.toString(Qt::ISODate)), 1500);
@@ -339,7 +340,7 @@ void MainWindow::navigateForward()
 
 void MainWindow::navigateBackward()
 {
-    m_currentDate = m_currentDate.addDays(-m_visibleDays);
+    m_currentDate = alignToWeekStart(m_currentDate).addDays(-7);
     updateCalendarRange();
     refreshCalendar();
     statusBar()->showMessage(tr("Zurück: %1").arg(m_currentDate.toString(Qt::ISODate)), 1500);
@@ -459,13 +460,8 @@ void MainWindow::updateCalendarRange()
 
 void MainWindow::zoomCalendarHorizontally(bool in)
 {
-    if (in) {
-        m_visibleDays = qMax(1, m_visibleDays - 1);
-    } else {
-        m_visibleDays = qMin(14, m_visibleDays + 1);
-    }
-    updateCalendarRange();
-    refreshCalendar();
+    const int delta = in ? -1 : 1;
+    setVisibleDayCount(m_visibleDays + delta);
 }
 
 void MainWindow::zoomCalendarVertically(bool in)
@@ -474,6 +470,17 @@ void MainWindow::zoomCalendarVertically(bool in)
         return;
     }
     m_calendarView->zoomTime(in ? 1.1 : 0.9);
+}
+
+void MainWindow::setVisibleDayCount(int days)
+{
+    const int clamped = qBound(1, days, 31);
+    if (clamped == m_visibleDays) {
+        return;
+    }
+    m_visibleDays = clamped;
+    updateCalendarRange();
+    refreshCalendar();
 }
 
 void MainWindow::handleEventSelected(const data::CalendarEvent &event)
@@ -770,6 +777,15 @@ void MainWindow::deleteSelection()
         m_previewVisible = false;
         refreshCalendar();
     }
+}
+
+QDate MainWindow::alignToWeekStart(const QDate &date) const
+{
+    if (!date.isValid()) {
+        return date;
+    }
+    const int offset = date.dayOfWeek() - 1;
+    return date.addDays(-offset);
 }
 
 } // namespace ui

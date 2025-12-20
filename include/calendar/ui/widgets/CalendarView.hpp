@@ -23,9 +23,9 @@ public:
     void setDateRange(const QDate &start, int days);
     void setEvents(std::vector<data::CalendarEvent> events);
     void zoomTime(double factor);
-    void zoomDays(double factor);
-
 signals:
+    void dayZoomRequested(bool zoomIn);
+
     void eventActivated(const data::CalendarEvent &event);
     void hoveredDateTime(const QDateTime &dateTime);
     void eventSelected(const data::CalendarEvent &event);
@@ -69,6 +69,7 @@ private:
     void updateDropPreview(const QDateTime &start, int durationMinutes, const QString &label);
     void clearDropPreview();
     QPair<double, double> handleArea(const data::CalendarEvent &event, bool top) const;
+    void recalculateDayWidth();
 
     QDate m_startDate;
     int m_dayCount = 5;

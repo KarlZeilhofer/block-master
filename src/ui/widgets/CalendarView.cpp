@@ -15,6 +15,7 @@
 #include <QLocale>
 #include <QtMath>
 #include <QIODevice>
+#include <QWheelEvent>
 #include <algorithm>
 
 namespace calendar {
@@ -23,8 +24,6 @@ namespace ui {
 namespace {
 constexpr double MinHourHeight = 20.0;
 constexpr double MaxHourHeight = 160.0;
-constexpr double MinDayWidth = 120.0;
-constexpr double MaxDayWidth = 420.0;
 constexpr double HandleZone = 8.0;
 constexpr int SnapIntervalMinutes = 15;
 const char *TodoMimeType = "application/x-calendar-todo";
@@ -37,6 +36,7 @@ CalendarView::CalendarView(QWidget *parent)
 {
     setMouseTracking(true);
     setAcceptDrops(true);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setDateRange(QDate::currentDate(), m_dayCount);
     updateScrollBars();
 }
@@ -48,6 +48,7 @@ void CalendarView::setDateRange(const QDate &start, int days)
     }
     m_startDate = start;
     m_dayCount = days;
+    recalculateDayWidth();
     viewport()->update();
     updateScrollBars();
 }
@@ -69,13 +70,6 @@ void CalendarView::setEvents(std::vector<data::CalendarEvent> events)
 void CalendarView::zoomTime(double factor)
 {
     m_hourHeight = qBound(MinHourHeight, m_hourHeight * factor, MaxHourHeight);
-    updateScrollBars();
-    viewport()->update();
-}
-
-void CalendarView::zoomDays(double factor)
-{
-    m_dayWidth = qBound(MinDayWidth, m_dayWidth * factor, MaxDayWidth);
     updateScrollBars();
     viewport()->update();
 }
@@ -187,13 +181,17 @@ void CalendarView::paintEvent(QPaintEvent *event)
 void CalendarView::resizeEvent(QResizeEvent *event)
 {
     QAbstractScrollArea::resizeEvent(event);
+    recalculateDayWidth();
     updateScrollBars();
 }
 
 void CalendarView::wheelEvent(QWheelEvent *event)
 {
     if (event->modifiers().testFlag(Qt::ControlModifier)) {
-        zoomDays(event->angleDelta().y() > 0 ? 1.1 : 0.9);
+        const int delta = event->angleDelta().y();
+        if (delta != 0) {
+            emit dayZoomRequested(delta > 0);
+        }
         event->accept();
         return;
     }
@@ -210,14 +208,6 @@ void CalendarView::wheelEvent(QWheelEvent *event)
         auto *vbar = verticalScrollBar();
         const int newValue = qBound(vbar->minimum(), vbar->value() - static_cast<int>(delta), vbar->maximum());
         vbar->setValue(newValue);
-        handled = true;
-    }
-    if (angle.x() != 0) {
-        const double steps = angle.x() / 120.0;
-        const double delta = steps * (m_dayWidth * 0.25); // Viertel Tag
-        auto *hbar = horizontalScrollBar();
-        const int newValue = qBound(hbar->minimum(), hbar->value() - static_cast<int>(delta), hbar->maximum());
-        hbar->setValue(newValue);
         handled = true;
     }
     if (handled) {
@@ -508,17 +498,17 @@ QRectF CalendarView::eventRect(const data::CalendarEvent &event) const
     const double endMinutes = event.end.time().hour() * 60 + event.end.time().minute();
     const double y = m_headerHeight + (startMinutes / 60.0) * m_hourHeight;
     const double height = qMax((endMinutes - startMinutes) / 60.0 * m_hourHeight, 20.0);
-    const double width = m_dayWidth - 12;
+    const double width = qMax(0.0, m_dayWidth - 12);
 
     return QRectF(x, y, width, height);
 }
 
 void CalendarView::updateScrollBars()
 {
-    const double totalWidth = m_timeAxisWidth + m_dayWidth * m_dayCount;
     const double totalHeight = m_headerHeight + m_hourHeight * 24.0;
-    horizontalScrollBar()->setRange(0, qMax(0, static_cast<int>(totalWidth - viewport()->width())));
+    horizontalScrollBar()->setRange(0, 0);
     horizontalScrollBar()->setPageStep(viewport()->width());
+    horizontalScrollBar()->setValue(0);
 
     verticalScrollBar()->setRange(0, qMax(0, static_cast<int>(totalHeight - viewport()->height())));
     verticalScrollBar()->setPageStep(viewport()->height());
@@ -543,6 +533,9 @@ void CalendarView::selectEventAt(const QPoint &pos)
 
 void CalendarView::emitHoverAt(const QPoint &pos)
 {
+    if (m_dayWidth <= 0.0) {
+        return;
+    }
     const QPointF scenePos = QPointF(pos) + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
     const double y = scenePos.y() - m_headerHeight;
     if (y >= 0) {
@@ -655,6 +648,9 @@ void CalendarView::endResize()
 
 std::optional<QDateTime> CalendarView::dateTimeAtScene(const QPointF &scenePos) const
 {
+    if (m_dayWidth <= 0.0) {
+        return std::nullopt;
+    }
     const double y = scenePos.y() - m_headerHeight;
     if (y < 0) {
         return std::nullopt;
@@ -774,6 +770,17 @@ QPair<double, double> CalendarView::handleArea(const data::CalendarEvent &event,
     }
 
     return { minY, maxY };
+}
+
+void CalendarView::recalculateDayWidth()
+{
+    const double availableWidth = qMax(0.0, static_cast<double>(viewport()->width()) - m_timeAxisWidth);
+    const int days = qMax(1, m_dayCount);
+    const double newWidth = days > 0 ? availableWidth / static_cast<double>(days) : availableWidth;
+    if (!qFuzzyCompare(1.0 + m_dayWidth, 1.0 + newWidth)) {
+        m_dayWidth = newWidth;
+        viewport()->update();
+    }
 }
 
 } // namespace ui
