@@ -273,6 +273,8 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::dayZoomRequested, this, &MainWindow::zoomCalendarHorizontally);
     connect(m_calendarView, &CalendarView::dayScrollRequested, this, &MainWindow::scrollVisibleDays);
     connect(m_calendarView, &CalendarView::eventDroppedToTodo, this, &MainWindow::handleEventDroppedToTodo);
+    connect(m_calendarView, &CalendarView::todoHoverPreviewRequested, this, &MainWindow::handleTodoHoverPreview);
+    connect(m_calendarView, &CalendarView::todoHoverPreviewCleared, this, &MainWindow::handleTodoHoverCleared);
     connect(m_calendarView,
             &CalendarView::eventCreationRequested,
             this,
@@ -907,7 +909,36 @@ void MainWindow::handleEventDroppedToTodo(const data::CalendarEvent &event, data
     }
     refreshTodos();
     refreshCalendar();
+    clearTodoHoverGhosts();
     statusBar()->showMessage(tr("Termin \"%1\" als TODO erfasst").arg(todo.title), 2000);
+}
+
+void MainWindow::handleTodoHoverPreview(data::TodoStatus status, const data::CalendarEvent &event)
+{
+    clearTodoHoverGhosts();
+    auto *view = todoViewForStatus(status);
+    if (!view) {
+        return;
+    }
+    const QString title = event.title.isEmpty() ? tr("(Ohne Titel)") : event.title;
+    const qint64 durationMinutes = qMax<qint64>(15, event.start.secsTo(event.end) / 60);
+    const int hours = static_cast<int>(durationMinutes / 60);
+    const int minutes = static_cast<int>(durationMinutes % 60);
+    QString durationText;
+    if (hours > 0 && minutes > 0) {
+        durationText = tr("%1h %2m").arg(hours).arg(minutes);
+    } else if (hours > 0) {
+        durationText = tr("%1h").arg(hours);
+    } else if (minutes > 0) {
+        durationText = tr("%1m").arg(minutes);
+    }
+    const QString label = durationText.isEmpty() ? title : tr("%1 (%2)").arg(title, durationText);
+    view->showGhostPreview(label);
+}
+
+void MainWindow::handleTodoHoverCleared()
+{
+    clearTodoHoverGhosts();
 }
 
 void MainWindow::handlePlacementConfirmed(const QDateTime &start)
@@ -1153,6 +1184,32 @@ void MainWindow::deleteSelection()
         m_previewVisible = false;
         refreshCalendar();
     }
+}
+
+void MainWindow::clearTodoHoverGhosts()
+{
+    if (m_todoPendingView) {
+        m_todoPendingView->clearGhostPreview();
+    }
+    if (m_todoInProgressView) {
+        m_todoInProgressView->clearGhostPreview();
+    }
+    if (m_todoDoneView) {
+        m_todoDoneView->clearGhostPreview();
+    }
+}
+
+TodoListView *MainWindow::todoViewForStatus(data::TodoStatus status) const
+{
+    switch (status) {
+    case data::TodoStatus::Pending:
+        return m_todoPendingView;
+    case data::TodoStatus::InProgress:
+        return m_todoInProgressView;
+    case data::TodoStatus::Completed:
+        return m_todoDoneView;
+    }
+    return nullptr;
 }
 
 QDate MainWindow::alignToWeekStart(const QDate &date) const

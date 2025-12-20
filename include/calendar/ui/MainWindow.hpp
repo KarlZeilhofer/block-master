@@ -76,6 +76,8 @@ private:
     void handleTodoDropped(const QUuid &todoId, const QDateTime &start);
     void handleEventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
     void handleEventDroppedToTodo(const data::CalendarEvent &event, data::TodoStatus status);
+    void handleTodoHoverPreview(data::TodoStatus status, const data::CalendarEvent &event);
+    void handleTodoHoverCleared();
     void handlePlacementConfirmed(const QDateTime &start);
     void handleHoveredDateTime(const QDateTime &dt);
     void handleEventCreationRequest(const QDateTime &start, const QDateTime &end);
@@ -92,6 +94,8 @@ private:
     void cancelPendingPlacement();
     void deleteSelection();
     QDate alignToWeekStart(const QDate &date) const;
+    void clearTodoHoverGhosts();
+    TodoListView *todoViewForStatus(data::TodoStatus status) const;
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;

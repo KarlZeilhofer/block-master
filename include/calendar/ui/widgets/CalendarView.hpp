@@ -41,6 +41,8 @@ signals:
     void externalPlacementConfirmed(const QDateTime &start);
     void eventDroppedToTodo(const data::CalendarEvent &event, data::TodoStatus status);
     void eventCreationRequested(const QDateTime &start, const QDateTime &end);
+    void todoHoverPreviewRequested(data::TodoStatus status, const data::CalendarEvent &event);
+    void todoHoverPreviewCleared();
 
 public:
     void beginPlacementPreview(int durationMinutes, const QString &label, const QDateTime &initialStart);
@@ -86,6 +88,8 @@ private:
     void finalizeInternalEventDrag(const QPointF &scenePos);
     void cancelInternalEventDrag();
     std::optional<data::TodoStatus> todoStatusUnderCursor(const QPoint &globalPos) const;
+    void updateTodoHoverFeedback();
+    void clearTodoHoverFeedback();
     struct EventSegment {
         QRectF rect;
         QDateTime segmentStart;
@@ -141,6 +145,7 @@ private:
     QDateTime m_newEventStart;
     QDateTime m_newEventEnd;
     bool m_allowNewEventCreation = true;
+    std::optional<data::TodoStatus> m_currentTodoHoverStatus;
 };
 
 } // namespace ui

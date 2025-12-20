@@ -26,12 +26,19 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
+
+public:
+    void showGhostPreview(const QString &text);
+    void clearGhostPreview();
 
 private:
     bool acceptTodoMime(const QMimeData *mime) const;
     QList<QUuid> decodeTodoIds(const QMimeData *mime) const;
 
     data::TodoStatus m_targetStatus = data::TodoStatus::Pending;
+    bool m_showGhostPreview = false;
+    QString m_ghostText;
 };
 
 } // namespace ui

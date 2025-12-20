@@ -23,6 +23,7 @@ Oranization: "Zellhoff", Domain: "zellhoff.at", Appname: "Task Master"
 Entfernen von TODOs per Delete-Taste
 
 Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht an der oberen Kante. 
+Außer der Event dauert länger als 16h, dann soll er bei Stunde 8 anhaften. 
 
 
 Cursor-Position braucht nicht in der Statusleiste angezeigt werden. Völlig unnötig. Zeige lieber Shortcuts an. 
@@ -33,10 +34,9 @@ Die Texte in der Titelzeile sind nicht immer lesbar, je nachdem, wie breit die S
 Reduziere die Anzeige für Wochentag und Monat/Jahre Stufenweise: 
 Samstag -> Sams > Sa
 Dezember 2025 -> Dez 25 > Dz25
-Die Monate in der kürzesten Schreibweise: Jn Fb Mz Ap Ma Jn Jl Ag Sp Ok Nv Dz
+Die Monate in der kürzesten Schreibweise: Jr Fb Mz Ap Ma Jn Jl Ag Sp Ok Nv Dz
 Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datum. 
 
-Wird ein Event in die Todo-Leiste gezogen, dann sollt dort auch ein Ghost-Element angezeigt werden. 
 
 
 
@@ -58,6 +58,10 @@ Zeige die aktuelle Uhrzeit als horizontale Linie am heutigen Tag in roter Farbe.
 
 WIP ################################
 
+Wird ein Event in die Todo-Leiste gezogen, dann sollt dort auch ein Ghost-Element angezeigt werden. 
+
+
+DONE ###############################
 Wird ein Event in die Todo-Liste gezogen, soll dem TODO die Dauer des Tasks erhalten bleiben.
 Es braucht daher eine neue Eigenschaft "duration" für TODOs. Könnte man auch mit dem universellen
 UNIX timestamp lösen: Beginnt um 0:00 am 1.1.1970 und endet entsprchend später. Mit diesem Spezialfall
@@ -65,7 +69,7 @@ könnte es vermieden werden, dass es ein neues Feld braucht.
 Beim Einfügen in den Kalender soll das Ghostelement dann gleich die richtige Größe (=Dauer) haben. 
 Aktuell wird immer 1 Stunde angenommen. Das soll weiterhin so sein, für TODOs, die noch keine Dauer festgelegt bekommenb haben. Die Dauer soll beim Todo auch immer in Klammer z.b. (3h 15m) angezeigt werden. 
 
-DONE ###############################
+
 Events müssen über die 0:00 Uhr Grenze verschoben werden können. D.h. wenn ich einen 3h-Event verschiebe auf 22:00 Uhr Startzeit, dann geht der Event über 24 Uhr hinaus, und am nächsten Tag erscheint dann auch eine Stunde. 
 Um das besser zu visualisieren, vergrößern wir generell die abgerundeten Ecken auf 8 Pixel. Geht ein Event über die 0-Uhr grenze hinaus, wird er dort rechteckig abgeschnitten, also ohne abgerundete Ecken. 
 

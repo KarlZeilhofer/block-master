@@ -3,6 +3,7 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
+#include <QPainter>
 
 #include "calendar/ui/mime/TodoMime.hpp"
 
@@ -58,6 +59,56 @@ void TodoListView::dropEvent(QDropEvent *event)
         emit todosDropped(ids, m_targetStatus);
     }
     event->acceptProposedAction();
+    clearGhostPreview();
+}
+
+void TodoListView::paintEvent(QPaintEvent *event)
+{
+    QListView::paintEvent(event);
+    if (!m_showGhostPreview || !viewport()) {
+        return;
+    }
+    QPainter painter(viewport());
+    painter.setRenderHint(QPainter::Antialiasing);
+    QRectF rect = viewport()->rect().adjusted(6, 6, -6, -6);
+    QColor fill = palette().highlight().color();
+    fill.setAlpha(90);
+    painter.setBrush(fill);
+    painter.setPen(Qt::NoPen);
+    painter.drawRoundedRect(rect, 8, 8);
+
+    painter.setPen(palette().brightText().color());
+    painter.drawText(rect.adjusted(8, 4, -8, -4),
+                     Qt::AlignCenter | Qt::TextWordWrap,
+                     m_ghostText);
+}
+
+void TodoListView::showGhostPreview(const QString &text)
+{
+    if (m_showGhostPreview && m_ghostText == text) {
+        return;
+    }
+    m_showGhostPreview = true;
+    m_ghostText = text;
+    if (viewport()) {
+        viewport()->update();
+    } else {
+        update();
+    }
+}
+
+void TodoListView::clearGhostPreview()
+{
+    if (!m_showGhostPreview) {
+        return;
+    }
+    m_showGhostPreview = false;
+    m_ghostText.clear();
+    if (viewport()) {
+        viewport()->update();
+    } else {
+        update();
+    }
 }
 
 bool TodoListView::acceptTodoMime(const QMimeData *mime) const

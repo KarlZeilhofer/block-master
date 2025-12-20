@@ -985,6 +985,7 @@ void CalendarView::beginInternalEventDrag(const data::CalendarEvent &event, int 
     m_internalDragOffsetMinutes = pointerOffsetMinutes;
     m_internalDragDurationMinutes = qMax(15, static_cast<int>(event.start.secsTo(event.end) / 60));
     m_dragInteractionActive = true;
+    clearTodoHoverFeedback();
 }
 
 void CalendarView::updateInternalEventDrag(const QPointF &scenePos)
@@ -992,15 +993,15 @@ void CalendarView::updateInternalEventDrag(const QPointF &scenePos)
     if (!m_internalDragActive) {
         return;
     }
-    auto dateTimeOpt = dateTimeAtScene(scenePos);
-    if (!dateTimeOpt) {
+    if (auto dateTimeOpt = dateTimeAtScene(scenePos)) {
+        QDateTime target = snapDateTime(dateTimeOpt.value());
+        target = target.addSecs(-m_internalDragOffsetMinutes * 60);
+        target = snapDateTime(target);
+        updateDropPreview(target, m_internalDragDurationMinutes, m_internalDragSource.title);
+    } else {
         clearDropPreview();
-        return;
     }
-    QDateTime target = snapDateTime(dateTimeOpt.value());
-    target = target.addSecs(-m_internalDragOffsetMinutes * 60);
-    target = snapDateTime(target);
-    updateDropPreview(target, m_internalDragDurationMinutes, m_internalDragSource.title);
+    updateTodoHoverFeedback();
 }
 
 void CalendarView::finalizeInternalEventDrag(const QPointF &scenePos)
@@ -1036,6 +1037,7 @@ void CalendarView::cancelInternalEventDrag()
     m_dragInteractionActive = false;
     clearDropPreview();
     resetDragCandidate();
+    clearTodoHoverFeedback();
 }
 
 std::optional<data::TodoStatus> CalendarView::todoStatusUnderCursor(const QPoint &globalPos) const
@@ -1053,6 +1055,32 @@ std::optional<data::TodoStatus> CalendarView::todoStatusUnderCursor(const QPoint
         widget = widget->parentWidget();
     }
     return std::nullopt;
+}
+
+void CalendarView::updateTodoHoverFeedback()
+{
+    if (!m_internalDragActive) {
+        return;
+    }
+    const auto status = todoStatusUnderCursor(QCursor::pos());
+    if (status == m_currentTodoHoverStatus) {
+        return;
+    }
+    m_currentTodoHoverStatus = status;
+    if (status.has_value()) {
+        emit todoHoverPreviewRequested(status.value(), m_internalDragSource);
+    } else {
+        emit todoHoverPreviewCleared();
+    }
+}
+
+void CalendarView::clearTodoHoverFeedback()
+{
+    if (!m_currentTodoHoverStatus.has_value()) {
+        return;
+    }
+    m_currentTodoHoverStatus.reset();
+    emit todoHoverPreviewCleared();
 }
 
 void CalendarView::startNewEventDrag()
