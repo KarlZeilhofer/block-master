@@ -26,9 +26,7 @@ Die Monate in der kürzesten Schreibweise: Jr Fb Mz Ap Ma Jn Jl Ag Sp Ok Nv Dz
 Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datum. 
 
 
-
-
-Damit angrenzende Events besser dargestellt werden, braucht die farbige fläch einen Rand mit einem dezenten Kontrast. 
+Damit angrenzende Events besser dargestellt werden, braucht die farbige Fläche einen Rand mit einem dezenten Kontrast. 
 
 Überlappende Events: 
 hier gibt es verschiedene Szenarien: 
@@ -44,8 +42,21 @@ Gemeinsames Verhalten:
 
 Zeige die aktuelle Uhrzeit als horizontale Linie am heutigen Tag in roter Farbe. 
 
+Start/Ende Zeiten (Datum + Uhrzeiten) können in InlineEdit nicht editiert werden!
+Das macht man immer grafisch. Somit fallen diese Elemente auch aus der Tab-Reihenfolge heraus. Somit wird die UI besser bedienbar. Lass die Elemente als read only stehen. 
+
+Es braucht in den Einstellungen eine Möglichkeit, Schlüsselwörter definieren zu können, und ihnen eine RGB-Farbe zuweisen zu können. Beispiel: "Urlaub #8080ff" oder "Deadline #ff3030". Für schnelles bearbeiten soll ein Plain Text edit verwendet werden, aber rechts davon gibt es auch einen Colorchooser, der dann für die aktuelle Zeile, in der der Cursor steht, angewandt wird. Bette den Color Chooser direkt ein, und synce ihn mit der Cursorposition. 
+Wir brauchen dafür einen Burger-Button rechts oben in der Toolbar. Dann kommt ein Dialogfenster, wo links ein Baum von Einstellungsmöglichkeiten erscheint. Rechts davon können dann die Einstellungen gemacht werden. 
+Die hier beschriebene erste Einstellmöglichkeit heißt "Schlüsselwörter". 
+
+Grenzen zwei Event direkt aneinander, soll beim ersten keine "Endezeit" dargestellt werden. Dadurch wird die Darstellung sauberer und besser lesbar. 
+
+
 WIP ################################
 
+
+
+DONE ###############################
 Ein Spezieller Einfüge-Modus soll aus einem Plaintext (z.B. aus einem Texteditor) pro Zeile ein TODO erzeugen können. 
 Ist das Erste Zeichen ein Tabulator, dann ist es eine Zeile in der Beschreibung zum TODO. Beispiel:
 
@@ -67,10 +78,6 @@ Da dies ein gravierender Eingriff ist, braucht es unbedingt ein Undo mit Strg+Z.
 
 Umgekehrt soll in gleicher Weise eine Auswahl (mulit-select möglich) per Strg+C als Plaintext in die Zwischenablage kopiert werden können. 
 
-Hast du noch Fragen?
-
-
-DONE ###############################
 Ist der InlneEditor offen, muss er mit Enter in LineEdit Titel (funktionert schon so), Ort oder Beschreibung gespeichert und geschlossen werden.
   Mit ESC muss er auch geschlossen und gespeichert werden.
   Befindet man sich im Textfeld Beschreibung, kann man mit Alt+Enter beenden, oder eben durch ESC. 

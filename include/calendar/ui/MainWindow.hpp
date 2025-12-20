@@ -87,6 +87,7 @@ private:
     void showPreviewForSelection();
     void showSelectionHint();
     void copySelection();
+    void copyTodosAsPlainText(const QList<data::TodoItem> &todos);
     void pasteClipboard();
     void duplicateSelection();
     void pasteClipboardAt(const QDateTime &targetStart);
@@ -97,6 +98,11 @@ private:
     void clearTodoHoverGhosts();
     TodoListView *todoViewForStatus(data::TodoStatus status) const;
     void setInlineEditorActive(bool active);
+    void pasteTodosFromPlainText(data::TodoStatus status);
+    QList<data::TodoItem> selectedTodos() const;
+    QString todosToPlainText(const QList<data::TodoItem> &todos) const;
+    void performUndo();
+    void performRedo();
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;

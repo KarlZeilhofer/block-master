@@ -3,9 +3,11 @@
 #include <QAbstractItemView>
 #include <QAction>
 #include <QApplication>
+#include <QClipboard>
 #include <QDate>
 #include <QDateTime>
 #include <QFrame>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
@@ -13,11 +15,13 @@
 #include <QListView>
 #include <QItemSelectionModel>
 #include <QLocale>
+#include <QRegularExpression>
 #include <QShortcut>
 #include <QSignalBlocker>
 #include <QSplitter>
 #include <QSettings>
 #include <QStatusBar>
+#include <QStringList>
 #include <QtMath>
 #include <QToolBar>
 #include <QToolButton>
@@ -25,8 +29,11 @@
 #include <QWidget>
 #include <QVariant>
 #include <optional>
+#include <algorithm>
 
 #include "calendar/core/AppContext.hpp"
+#include "calendar/core/UndoCommand.hpp"
+#include "calendar/core/UndoStack.hpp"
 #include "calendar/data/Event.hpp"
 #include "calendar/data/EventRepository.hpp"
 #include "calendar/data/TodoRepository.hpp"
@@ -39,6 +46,193 @@
 #include "calendar/ui/widgets/EventPreviewPanel.hpp"
 #include "calendar/ui/widgets/TodoListView.hpp"
 #include "calendar/ui/dialogs/EventDetailDialog.hpp"
+
+namespace {
+
+struct PlainTextTodoDefinition
+{
+    QString title;
+    QString description;
+    QString location;
+    int durationMinutes = 0;
+};
+
+QString stripControlChars(const QString &value)
+{
+    static const QRegularExpression controlPattern(QStringLiteral("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"));
+    QString cleaned = value;
+    cleaned.remove(controlPattern);
+    cleaned.replace('\t', QStringLiteral(" "));
+    return cleaned;
+}
+
+int extractDurationFromTitle(QString &title)
+{
+    static const QRegularExpression durationPattern(QStringLiteral("\\b(\\d+[\\.,]?\\d*)\\s*(h|std|stunden|min|minute|minuten)\\b"),
+                                                    QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatch match = durationPattern.match(title);
+    if (!match.hasMatch()) {
+        return 0;
+    }
+    QString numberPart = match.captured(1);
+    QString unit = match.captured(2).toLower();
+    numberPart.replace(',', '.');
+    double value = numberPart.toDouble();
+    if (value <= 0.0) {
+        title.remove(match.capturedStart(), match.capturedLength());
+        title = title.trimmed();
+        return 0;
+    }
+    int minutes = 0;
+    if (unit.startsWith('h') || unit.startsWith("std")) {
+        minutes = static_cast<int>(qRound(value * 60.0));
+    } else {
+        minutes = static_cast<int>(qRound(value));
+    }
+    title.remove(match.capturedStart(), match.capturedLength());
+    title = title.trimmed();
+    title.replace(QRegularExpression(QStringLiteral("\\s{2,}")), QStringLiteral(" "));
+    return minutes;
+}
+
+QVector<PlainTextTodoDefinition> parsePlainTextTodos(const QString &text)
+{
+    QVector<PlainTextTodoDefinition> todos;
+    if (text.trimmed().isEmpty()) {
+        return todos;
+    }
+    QString normalized = text;
+    normalized.replace('\r', QString());
+    const QStringList lines = normalized.split('\n');
+    PlainTextTodoDefinition current;
+    QStringList descriptionLines;
+    bool hasCurrent = false;
+
+    auto flushCurrent = [&]() {
+        QString title = stripControlChars(current.title).trimmed();
+        if (title.isEmpty()) {
+            current = PlainTextTodoDefinition();
+            descriptionLines.clear();
+            hasCurrent = false;
+            return;
+        }
+        PlainTextTodoDefinition entry;
+        entry.title = title;
+        entry.durationMinutes = current.durationMinutes;
+        entry.location = stripControlChars(current.location).trimmed();
+        QString description = stripControlChars(descriptionLines.join('\n')).trimmed();
+        entry.description = description;
+        todos.push_back(entry);
+        current = PlainTextTodoDefinition();
+        descriptionLines.clear();
+        hasCurrent = false;
+    };
+
+    for (const QString &rawLine : lines) {
+        QString line = rawLine;
+        if (line.isEmpty()) {
+            continue;
+        }
+        bool indented = !line.isEmpty() && (line.at(0) == QLatin1Char(' ') || line.at(0) == QLatin1Char('\t'));
+        if (!indented) {
+            if (!line.trimmed().isEmpty()) {
+                if (hasCurrent) {
+                    flushCurrent();
+                }
+                current = PlainTextTodoDefinition();
+                descriptionLines.clear();
+                current.title = stripControlChars(line).trimmed();
+                current.durationMinutes = extractDurationFromTitle(current.title);
+                if (!current.title.isEmpty()) {
+                    hasCurrent = true;
+                }
+            }
+            continue;
+        }
+        if (!hasCurrent) {
+            continue;
+        }
+        int index = 0;
+        while (index < line.size() && (line.at(index) == QLatin1Char(' ') || line.at(index) == QLatin1Char('\t'))) {
+            ++index;
+        }
+        QString content = stripControlChars(line.mid(index)).trimmed();
+        if (content.isEmpty()) {
+            continue;
+        }
+        if (content.startsWith(QStringLiteral("Ort"), Qt::CaseInsensitive)) {
+            const int colonIndex = content.indexOf(QLatin1Char(':'));
+            if (colonIndex != -1) {
+                QString locationValue = stripControlChars(content.mid(colonIndex + 1)).trimmed();
+                if (!locationValue.isEmpty()) {
+                    current.location = locationValue;
+                }
+                continue;
+            }
+        }
+        descriptionLines << content;
+    }
+
+    if (hasCurrent) {
+        flushCurrent();
+    }
+    return todos;
+}
+
+QString durationTokenForMinutes(int minutes)
+{
+    if (minutes <= 0) {
+        return QString();
+    }
+    if (minutes % 60 == 0) {
+        return QStringLiteral("%1h").arg(minutes / 60);
+    }
+    if (minutes < 60) {
+        return QStringLiteral("%1min").arg(minutes);
+    }
+    double hours = static_cast<double>(minutes) / 60.0;
+    QString text = QLocale().toString(hours, 'f', 2);
+    text.remove(QRegularExpression(QStringLiteral("(,|\\.)00$")));
+    text.remove(QRegularExpression(QStringLiteral("(,|\\.)0$")));
+    text.replace('.', ',');
+    return QStringLiteral("%1h").arg(text);
+}
+
+class PlainTextInsertCommand : public calendar::core::UndoCommand
+{
+public:
+    PlainTextInsertCommand(calendar::data::TodoRepository &repository,
+                           std::vector<calendar::data::TodoItem> templates)
+        : m_repository(repository)
+        , m_templates(std::move(templates))
+    {
+    }
+
+    void redo() override
+    {
+        m_createdItems.clear();
+        for (auto item : m_templates) {
+            item.id = QUuid();
+            m_createdItems.push_back(m_repository.addTodo(item));
+        }
+    }
+
+    void undo() override
+    {
+        for (const auto &item : m_createdItems) {
+            m_repository.removeTodo(item.id);
+        }
+    }
+
+    std::size_t count() const { return m_templates.size(); }
+
+private:
+    calendar::data::TodoRepository &m_repository;
+    std::vector<calendar::data::TodoItem> m_templates;
+    std::vector<calendar::data::TodoItem> m_createdItems;
+};
+
+} // namespace
 
 namespace calendar {
 namespace ui {
@@ -235,6 +429,12 @@ QWidget *MainWindow::createTodoPanel()
         connect(deleteAction, &QAction::triggered, this, &MainWindow::deleteSelectedTodos);
         addAction(deleteAction);
 
+        auto *plainPasteAction = new QAction(tr("Einfügen aus Plaintext"), view);
+        view->addAction(plainPasteAction);
+        connect(plainPasteAction, &QAction::triggered, this, [this, status]() {
+            pasteTodosFromPlainText(status);
+        });
+
         sectionLayout->addWidget(view, 1);
         m_todoSplitter->addWidget(container);
     };
@@ -383,6 +583,14 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
     m_cancelPlacementShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
     m_cancelPlacementShortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(m_cancelPlacementShortcut, &QShortcut::activated, this, &MainWindow::cancelPendingPlacement);
+
+    auto *undoShortcut = new QShortcut(QKeySequence::Undo, this);
+    undoShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(undoShortcut, &QShortcut::activated, this, &MainWindow::performUndo);
+
+    auto *redoShortcut = new QShortcut(QKeySequence::Redo, this);
+    redoShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(redoShortcut, &QShortcut::activated, this, &MainWindow::performRedo);
 }
 
 void MainWindow::saveTodoSplitterState() const
@@ -1097,12 +1305,33 @@ void MainWindow::showSelectionHint()
 
 void MainWindow::copySelection()
 {
-    if (!m_selectedEvent.has_value()) {
+    if (m_selectedEvent.has_value()) {
+        m_clipboardEvents.clear();
+        m_clipboardEvents.push_back(*m_selectedEvent);
+        statusBar()->showMessage(tr("Termin kopiert: %1").arg(m_selectedEvent->title), 1500);
         return;
     }
-    m_clipboardEvents.clear();
-    m_clipboardEvents.push_back(*m_selectedEvent);
-    statusBar()->showMessage(tr("Termin kopiert: %1").arg(m_selectedEvent->title), 1500);
+    auto todos = selectedTodos();
+    if (!todos.isEmpty()) {
+        copyTodosAsPlainText(todos);
+    }
+}
+
+void MainWindow::copyTodosAsPlainText(const QList<data::TodoItem> &todos)
+{
+    if (todos.isEmpty()) {
+        statusBar()->showMessage(tr("Keine TODOs ausgewählt"), 1500);
+        return;
+    }
+    const QString plain = todosToPlainText(todos);
+    if (plain.isEmpty()) {
+        statusBar()->showMessage(tr("Keine Daten zum Kopieren"), 1500);
+        return;
+    }
+    if (auto *clipboard = QGuiApplication::clipboard()) {
+        clipboard->setText(plain, QClipboard::Clipboard);
+    }
+    statusBar()->showMessage(tr("%1 TODO(s) kopiert").arg(todos.size()), 2000);
 }
 
 void MainWindow::pasteClipboard()
@@ -1150,6 +1379,135 @@ void MainWindow::pasteClipboardAt(const QDateTime &targetStart)
     }
     refreshCalendar();
     statusBar()->showMessage(tr("%1 Termin(e) eingefügt").arg(m_clipboardEvents.size()), 2000);
+}
+
+QList<data::TodoItem> MainWindow::selectedTodos() const
+{
+    QList<data::TodoItem> items;
+    auto collect = [&](TodoListView *view) {
+        if (!view || !m_todoViewModel) {
+            return;
+        }
+        auto *selection = view->selectionModel();
+        auto *proxy = proxyForView(view);
+        if (!selection || !proxy) {
+            return;
+        }
+        auto indexes = selection->selectedIndexes();
+        if (indexes.isEmpty()) {
+            return;
+        }
+        std::sort(indexes.begin(), indexes.end(), [](const QModelIndex &lhs, const QModelIndex &rhs) {
+            return lhs.row() < rhs.row();
+        });
+        auto *model = m_todoViewModel->model();
+        if (!model) {
+            return;
+        }
+        for (const auto &index : indexes) {
+            const QModelIndex sourceIndex = proxy->mapToSource(index);
+            if (const auto *todo = model->todoAt(sourceIndex)) {
+                items.append(*todo);
+            }
+        }
+    };
+    collect(m_todoPendingView);
+    collect(m_todoInProgressView);
+    collect(m_todoDoneView);
+    return items;
+}
+
+QString MainWindow::todosToPlainText(const QList<data::TodoItem> &todos) const
+{
+    QStringList lines;
+    for (const auto &todo : todos) {
+        QString line = todo.title.isEmpty() ? tr("(Ohne Titel)") : todo.title;
+        const QString durationToken = durationTokenForMinutes(todo.durationMinutes);
+        if (!durationToken.isEmpty()) {
+            line += QStringLiteral(" %1").arg(durationToken);
+        }
+        lines << line;
+        if (!todo.description.isEmpty()) {
+            const QStringList descLines = todo.description.split('\n');
+            for (const auto &descLine : descLines) {
+                const QString trimmed = descLine.trimmed();
+                if (!trimmed.isEmpty()) {
+                    lines << QStringLiteral("\t%1").arg(trimmed);
+                }
+            }
+        }
+        if (!todo.location.trimmed().isEmpty()) {
+            lines << QStringLiteral("\tOrt: %1").arg(todo.location.trimmed());
+        }
+    }
+    return lines.join(QLatin1Char('\n'));
+}
+
+void MainWindow::pasteTodosFromPlainText(data::TodoStatus status)
+{
+    if (!m_appContext) {
+        return;
+    }
+    auto *clipboard = QGuiApplication::clipboard();
+    if (!clipboard) {
+        statusBar()->showMessage(tr("Zwischenablage nicht verfügbar"), 2000);
+        return;
+    }
+    const QString content = clipboard->text(QClipboard::Clipboard);
+    const auto parsed = parsePlainTextTodos(content);
+    if (parsed.isEmpty()) {
+        statusBar()->showMessage(tr("Keine TODOs erkannt"), 2000);
+        return;
+    }
+    std::vector<data::TodoItem> templates;
+    templates.reserve(static_cast<std::size_t>(parsed.size()));
+    for (const auto &entry : parsed) {
+        data::TodoItem todo;
+        todo.title = entry.title;
+        todo.description = entry.description;
+        todo.location = entry.location;
+        todo.status = status;
+        todo.durationMinutes = entry.durationMinutes;
+        todo.scheduled = false;
+        templates.push_back(todo);
+    }
+    auto command = std::make_unique<PlainTextInsertCommand>(m_appContext->todoRepository(), std::move(templates));
+    const int count = parsed.size();
+    m_appContext->undoStack().push(std::move(command));
+    refreshTodos();
+    statusBar()->showMessage(tr("%1 TODO(s) eingefügt").arg(count), 2000);
+}
+
+void MainWindow::performUndo()
+{
+    if (!m_appContext) {
+        return;
+    }
+    auto &stack = m_appContext->undoStack();
+    if (!stack.canUndo()) {
+        statusBar()->showMessage(tr("Nichts zum Rückgängig machen"), 1500);
+        return;
+    }
+    stack.undo();
+    refreshTodos();
+    refreshCalendar();
+    statusBar()->showMessage(tr("Aktion rückgängig gemacht"), 2000);
+}
+
+void MainWindow::performRedo()
+{
+    if (!m_appContext) {
+        return;
+    }
+    auto &stack = m_appContext->undoStack();
+    if (!stack.canRedo()) {
+        statusBar()->showMessage(tr("Nichts zum Wiederholen"), 1500);
+        return;
+    }
+    stack.redo();
+    refreshTodos();
+    refreshCalendar();
+    statusBar()->showMessage(tr("Aktion wiederholt"), 2000);
 }
 
 QDateTime MainWindow::snapToQuarterHour(const QDateTime &dt) const
