@@ -11,6 +11,7 @@ Einkaufen gehen
 Autoreifen kaufen
     19 Zoll, 245/60/R19
 -----------------
+Findest du im Titel eine Zeitangabe, wie 3h, 30min, 1,5h oder ähnliches, dann entspricht das der Dauer. 
 
 
 Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
@@ -37,12 +38,7 @@ Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datu
 
 Wird ein Event in die Todo-Leiste gezogen, dann sollt dort auch ein Ghost-Element angezeigt werden. 
 
-Wird ein Event in dei Todo-Liste gezogen, soll dem TODO die Dauer des Tasks erhalten bleiben.
-Es braucht daher eine neue Eigenschaft "duration" für TODOs. Könnte man auch mit dem universellen
-UNIX timestamp lösen: Beginnt um 0:00 am 1.1.1970 und endet entsprchend später. Mit diesem Spezialfall
-könnte es vermieden werden, dass es ein neues Feld braucht. 
-Beim Einfügen in den Kalender soll das Ghostelement dann gleich die richtige Größe (=Dauer) haben. 
-Aktuell wird immer 1 Stunde angenommen. Das soll weiterhin so sein, für TODOs, die noch keine Dauer festgelegt bekommenb haben. 
+
 
 Damit angrenzende Events besser dargestellt werden, braucht die farbige fläch einen Rand mit einem dezenten Kontrast. 
 
@@ -59,11 +55,17 @@ Gemeinsames Verhalten:
 
 WIP ################################
 
+Wird ein Event in die Todo-Liste gezogen, soll dem TODO die Dauer des Tasks erhalten bleiben.
+Es braucht daher eine neue Eigenschaft "duration" für TODOs. Könnte man auch mit dem universellen
+UNIX timestamp lösen: Beginnt um 0:00 am 1.1.1970 und endet entsprchend später. Mit diesem Spezialfall
+könnte es vermieden werden, dass es ein neues Feld braucht. 
+Beim Einfügen in den Kalender soll das Ghostelement dann gleich die richtige Größe (=Dauer) haben. 
+Aktuell wird immer 1 Stunde angenommen. Das soll weiterhin so sein, für TODOs, die noch keine Dauer festgelegt bekommenb haben. Die Dauer soll beim Todo auch immer in Klammer z.b. (3h 15m) angezeigt werden. 
+
+DONE ###############################
 Events müssen über die 0:00 Uhr Grenze verschoben werden können. D.h. wenn ich einen 3h-Event verschiebe auf 22:00 Uhr Startzeit, dann geht der Event über 24 Uhr hinaus, und am nächsten Tag erscheint dann auch eine Stunde. 
 Um das besser zu visualisieren, vergrößern wir generell die abgerundeten Ecken auf 8 Pixel. Geht ein Event über die 0-Uhr grenze hinaus, wird er dort rechteckig abgeschnitten, also ohne abgerundete Ecken. 
 
-
-DONE ###############################
 Links soll es 3 Listen geben:
 Offen (oben), In Arbeit (mittig), Erledigt (unten)
 Erledigt soll graue Schrift haben. 
