@@ -794,13 +794,13 @@ void MainWindow::openInlineEditor()
     if (m_selectedEvent.has_value()) {
         m_eventEditor->setEvent(*m_selectedEvent);
         m_eventEditor->setVisible(true);
-        m_eventEditor->setFocus();
+        m_eventEditor->focusTitle(true);
         return;
     }
     if (m_selectedTodo.has_value()) {
         m_eventEditor->setTodo(*m_selectedTodo);
         m_eventEditor->setVisible(true);
-        m_eventEditor->setFocus();
+        m_eventEditor->focusTitle(true);
     }
 }
 

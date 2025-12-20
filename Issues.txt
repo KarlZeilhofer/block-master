@@ -1,4 +1,4 @@
-
+Issues ###########################
 
 Ein Spezieller Einfüge-Modus soll aus einem Plaintext (z.B. aus einem Texteditor) pro Zeile ein TODO erzeugen können. 
 Ist das Erste Zeichen ein Tabulator, dann ist es eine Zeile in der Beschreibung zum TODO. Beispiel:
@@ -13,6 +13,9 @@ Autoreifen kaufen
 -----------------
 
 
+Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
+
+Entferne die Dummy-Erzeugung im Quellcode - durch das Laden der Persistenten Daten ist das nicht mehr nötig. 
 
 
 Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht an der oberen Kante. 
@@ -32,12 +35,17 @@ Dezember 2025 -> Dez 25 > Dz25
 Die Monate in der kürzesten Schreibweise: Jn Fb Mz Ap Ma Jn Jl Ag Sp Ok Nv Dz
 Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datum. 
 
-
-WIP
-
+Wird ein Event in die Todo-Leiste gezogen, dann sollt dort auch ein Ghost-Element angezeigt werden. 
 
 
-DONE
+WIP ################################
+
+
+DONE ###############################
+
+Ein Neuer Event soll im Kalender durch Drag in der Zeitleiste erstellt werden können. 
+Somit sind Start und Endzeitpunkt fixiert. Dann popt der InlineEditor auf, und man kann dann den Titel direkt eingeben. 
+
 
 Persistentes abspeichern der Daten in default.ics
 
