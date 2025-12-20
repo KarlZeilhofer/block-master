@@ -26,6 +26,7 @@
 #include <QFontMetricsF>
 #include <QToolTip>
 #include <QHelpEvent>
+#include <QStringList>
 
 #include "calendar/ui/mime/TodoMime.hpp"
 
@@ -692,6 +693,14 @@ bool CalendarView::viewportEvent(QEvent *event)
     if (event->type() == QEvent::ToolTip) {
         auto *helpEvent = static_cast<QHelpEvent *>(event);
         const QPoint pos = helpEvent->pos();
+        const QPointF scenePos = QPointF(pos) + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+        if (const auto *eventData = eventAt(scenePos)) {
+            const QString tooltip = eventTooltipText(*eventData);
+            if (!tooltip.isEmpty()) {
+                QToolTip::showText(helpEvent->globalPos(), tooltip, viewport());
+                return true;
+            }
+        }
         const double monthHeight = monthBandHeight();
         const double totalHeight = totalHeaderHeight();
         if (m_dayWidth > 0.0 && pos.x() >= m_timeAxisWidth) {
@@ -1698,6 +1707,47 @@ bool CalendarView::handleWheelInteraction(QWheelEvent *event)
         return true;
     }
     return false;
+}
+
+QString CalendarView::eventTooltipText(const data::CalendarEvent &event) const
+{
+    QStringList lines;
+    const QString title = event.title.trimmed().isEmpty() ? tr("(Ohne Titel)") : event.title.trimmed();
+    lines << title;
+
+    const QString description = event.description.trimmed();
+    if (!description.isEmpty()) {
+        lines << description;
+    }
+
+    const QString location = event.location.trimmed();
+    if (!location.isEmpty()) {
+        lines << tr("Ort: %1").arg(location);
+    }
+
+    const int durationMinutes = qMax(0, static_cast<int>(event.start.secsTo(event.end) / 60));
+    const QString durationText = formatDurationMinutes(durationMinutes);
+    if (!durationText.isEmpty()) {
+        lines << tr("Dauer: %1").arg(durationText);
+    }
+
+    return lines.join(QStringLiteral("\n"));
+}
+
+QString CalendarView::formatDurationMinutes(int totalMinutes) const
+{
+    if (totalMinutes <= 0) {
+        return QString();
+    }
+    const int hours = totalMinutes / 60;
+    const int minutes = totalMinutes % 60;
+    if (hours > 0 && minutes > 0) {
+        return tr("%1h %2m").arg(hours).arg(minutes);
+    }
+    if (hours > 0) {
+        return tr("%1h").arg(hours);
+    }
+    return tr("%1min").arg(minutes);
 }
 
 } // namespace ui

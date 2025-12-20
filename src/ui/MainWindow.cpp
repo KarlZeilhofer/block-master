@@ -12,7 +12,6 @@
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
-#include <QDebug>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
@@ -1636,9 +1635,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
             }
         } else if (event->type() == QEvent::KeyPress) {
             auto *keyEvent = static_cast<QKeyEvent *>(event);
-            qDebug() << "[MainWindow] search field key event" << keyEvent->key();
             if (keyEvent->key() == Qt::Key_Escape) {
-                qDebug() << "[MainWindow] clearing search via ESC";
                 if (!m_todoSearchField->text().isEmpty()) {
                     m_todoSearchField->clear();
                 }

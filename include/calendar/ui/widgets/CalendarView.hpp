@@ -113,6 +113,8 @@ private:
     double monthBandHeight() const;
     double totalHeaderHeight() const;
     bool eventMatchesFilter(const data::CalendarEvent &event) const;
+    QString eventTooltipText(const data::CalendarEvent &event) const;
+    QString formatDurationMinutes(int totalMinutes) const;
 
     QDate m_startDate;
     int m_dayCount = 5;

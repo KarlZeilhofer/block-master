@@ -47,6 +47,8 @@ Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position veränder
 
 WIP ################################
 
+Erstelle für jeden Event einen Tooltip, der alles im Plaintext anzeigt, was es zu wissen gibt: Titel, Beschreibung, Ort, Dauer
+
 DONE ###############################
 
 Wenn der Cursor in der Suchleiste steht, und dann Strg+N gedrückt wird, dann soll der Text in der Suchleiste für das neue Issue übernommen werden. Der Text in der Suchleist verbleibt dort. Somit ist nur das neue Todo sichtbar, und es kann gleich ausgewählt und in den Kalender gezogen werden. 
