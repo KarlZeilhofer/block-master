@@ -21,8 +21,6 @@ Die Monate in der kürzesten Schreibweise: Jr Fb Mz Ap Ma Jn Jl Ag Sp Ok Nv Dz
 Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datum. 
 
 
-Damit angrenzende Events besser dargestellt werden, braucht die farbige Fläche einen Rand mit einem dezenten Kontrast. 
-
 Überlappende Events: 
 hier gibt es verschiedene Szenarien: 
 * ein kurzer Event innerhalb eines langen Events: 
@@ -44,8 +42,6 @@ Es braucht in den Einstellungen eine Möglichkeit, Schlüsselwörter definieren 
 Wir brauchen dafür einen Burger-Button rechts oben in der Toolbar. Dann kommt ein Dialogfenster, wo links ein Baum von Einstellungsmöglichkeiten erscheint. Rechts davon können dann die Einstellungen gemacht werden. 
 Die hier beschriebene erste Einstellmöglichkeit heißt "Schlüsselwörter". 
 
-Grenzen zwei Event direkt aneinander, soll beim ersten keine "Endezeit" dargestellt werden. Dadurch wird die Darstellung sauberer und besser lesbar. 
-
 Wird bei einem Drag-Event nur gescrollt (horizontal oder vertikal) wird das Ghost Objekt nicht aktualisiert. 
 Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position verändert, wird das Objket korrekt gerendert. Aber beim Verschieben über Tage hinweg, wo man scrollt, bewegt sich nicht zwangsläufig die Maus. 
 
@@ -54,6 +50,8 @@ WIP ################################
 
 
 DONE ###############################
+
+Grenzen zwei Event direkt aneinander, soll beim ersten keine "Endezeit" dargestellt werden. Dadurch wird die Darstellung sauberer und besser lesbar. 
 
 Die Uhrzeit-Labels sind schlecht platziert, sehr uneindeutig. 
 Unterbrich die horizontale Gitterlinie links vom ersten Tag (lass einen Stummel mit 5 Pixel stehen) und schreib vertikal zentriert links von dem Stummel die Uhrzeit. 0 und 24 Uhr müssen speziell behandelt werden: 0 Uhr ist oben bündig, 24 Uhr ist unten bündig mit der Gitterlinie. 

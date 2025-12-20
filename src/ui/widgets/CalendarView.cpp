@@ -442,6 +442,16 @@ void CalendarView::paintEvent(QPaintEvent *event)
         QRectF topRect = segments.front().rect;
         QRectF bottomRect = segments.back().rect;
 
+        const bool hasAdjacentFollower = std::any_of(m_events.begin(), m_events.end(), [&](const data::CalendarEvent &other) {
+            if (other.id == eventData.id) {
+                return false;
+            }
+            if (other.start != eventData.end) {
+                return false;
+            }
+            return other.start.date() == eventData.end.date();
+        });
+
         for (const auto &segment : segments) {
             QRectF rect = segment.rect.translated(0, -yOffset);
             if (!rect.intersects(visibleRect)) {
@@ -467,15 +477,23 @@ void CalendarView::paintEvent(QPaintEvent *event)
                              block);
             infoDrawn = true;
 
-            const QString endLabel = segment.clipBottom
-                ? QStringLiteral("...")
-                : segment.segmentEnd.time().toString(QStringLiteral("hh:mm"));
-            painter.drawText(QRectF(rect.left() + 4,
-                                    rect.bottom() - 20,
-                                    rect.width() - 8,
-                                    18),
-                             Qt::AlignLeft | Qt::AlignVCenter,
-                             endLabel);
+            bool showEndLabel = true;
+            QString endLabel;
+            if (segment.clipBottom) {
+                endLabel = QStringLiteral("...");
+            } else if (hasAdjacentFollower) {
+                showEndLabel = false;
+            } else {
+                endLabel = segment.segmentEnd.time().toString(QStringLiteral("hh:mm"));
+            }
+            if (showEndLabel) {
+                painter.drawText(QRectF(rect.left() + 4,
+                                        rect.bottom() - 20,
+                                        rect.width() - 8,
+                                        18),
+                                 Qt::AlignLeft | Qt::AlignVCenter,
+                                 endLabel);
+            }
         }
 
         painter.setPen(Qt::NoPen);
