@@ -34,11 +34,16 @@ Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datu
 
 
 WIP
-Bennenne die App um auf "Task Master". 
 
 
 
 DONE
+
+Persistentes abspeichern der Daten in default.ics
+
+Bennenne die App um auf "Task Master". 
+
+
 Ein Event soll per Drag'n'Drop auch wieder in die Todoleite verschoben werden können. D.h. er verliert dann den Zeitbezug. 
 Das "Details Anzeigen" soll auch für ausgewählte TODOs funktionieren. Ein TODO kann entsprechend neben Titel auch Ort und Beschreibung haben.  
 

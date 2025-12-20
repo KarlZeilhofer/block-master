@@ -1025,7 +1025,7 @@ bool CalendarView::handleWheelInteraction(QWheelEvent *event)
     }
     if (angle.y() != 0) {
         const double steps = angle.y() / 120.0;
-        const double delta = steps * (m_hourHeight * 0.25); // 15 Minuten
+        const double delta = steps * (m_hourHeight * 0.5); // 30 Minuten
         auto *vbar = verticalScrollBar();
         const int newValue = qBound(vbar->minimum(), vbar->value() - static_cast<int>(delta), vbar->maximum());
         vbar->setValue(newValue);
