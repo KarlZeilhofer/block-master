@@ -1,6 +1,6 @@
 Issues ###########################
 
-
+Die App soll umbenann werden von "Task Master" auf "Block Master"
 
 Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
 
@@ -51,12 +51,29 @@ Die hier beschriebene erste Einstellmöglichkeit heißt "Schlüsselwörter".
 
 Grenzen zwei Event direkt aneinander, soll beim ersten keine "Endezeit" dargestellt werden. Dadurch wird die Darstellung sauberer und besser lesbar. 
 
+Wird bei einem Drag-Event nur gescrollt (horizontal oder vertikal) wird das Ghost Objekt nicht aktualisiert. 
+Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position verändert, wird das Objket korrekt gerendert. Aber beim Verschieben über Tage hinweg, wo man scrollt, bewegt sich nicht zwangsläufig die Maus. 
+
 
 WIP ################################
 
 
 
 DONE ###############################
+
+Die Texte in der Titelzeile sind nicht immer lesbar, je nachdem, wie breit die Spalten sind. 
+Reduziere die Anzeige für Wochentag und Monat/Jahre Stufenweise: 
+Samstag -> Sams > Sa
+Dezember 2025 -> Dez 25 > Dz25
+Die Monate in der kürzesten Schreibweise: Jr Fb Mz Ap Ma Jn Jl Ag Sp Ok Nv Dz
+Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datum. 
+
+wird die Spalte kleiner als 75px, dann erscheint oberhalb der Kalendertage eine separate Monatsleiste in der z.B. "Dezember 2025" steht. Diese Leiste soll so hoch sein wie die bisherige Sticky Header Leiste, also 40px. Schriftart soll
+  so sein wie beim Kalendertag - sehr gute Lesbarkeit. Sind 2 Monate teilweise sichtbar, gibt es zwei solge Labels, die für ihren Bereich jeweils zentriert positioniert sind.
+
+
+
+
 Ein Spezieller Einfüge-Modus soll aus einem Plaintext (z.B. aus einem Texteditor) pro Zeile ein TODO erzeugen können. 
 Ist das Erste Zeichen ein Tabulator, dann ist es eine Zeile in der Beschreibung zum TODO. Beispiel:
 

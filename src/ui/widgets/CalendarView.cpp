@@ -22,6 +22,7 @@
 #include <QCursor>
 #include <algorithm>
 #include <map>
+#include <QFontMetricsF>
 #include <QToolTip>
 #include <QHelpEvent>
 
@@ -107,6 +108,30 @@ QString monthYearForWidth(const QDate &date, const QFontMetrics &metrics, double
     QStringList variants;
     variants << longForm << medium << compact;
     return chooseLabel(variants, metrics, width);
+}
+
+QFont fitFontToHeight(const QFont &base, double availableHeight, double multiplier = 1.0)
+{
+    if (availableHeight <= 0.0) {
+        return base;
+    }
+    QFont font = base;
+    double baseSize = base.pointSizeF();
+    if (baseSize <= 0.0) {
+        if (base.pixelSize() > 0) {
+            baseSize = static_cast<double>(base.pixelSize());
+        } else {
+            baseSize = 12.0;
+        }
+    }
+    double size = baseSize * multiplier;
+    font.setPointSizeF(size);
+    QFontMetricsF metrics(font);
+    if (metrics.height() > availableHeight && metrics.height() > 0.0) {
+        double scale = availableHeight / metrics.height();
+        font.setPointSizeF(qMax(1.0, size * scale));
+    }
+    return font;
 }
 } // namespace
 
@@ -201,7 +226,13 @@ void CalendarView::paintEvent(QPaintEvent *event)
     if (showMonthBand()) {
         QFont monthFont = originalFont;
         monthFont.setBold(true);
+        double baseSize = monthFont.pointSizeF();
+        if (baseSize <= 0.0) {
+            baseSize = monthFont.pixelSize() > 0 ? monthFont.pixelSize() : 12.0;
+        }
+        monthFont.setPointSizeF(baseSize * 2.0);
         painter.setFont(monthFont);
+        painter.setPen(Qt::black);
         for (int day = 0; day < m_dayCount;) {
             const QDate date = m_startDate.addDays(day);
             int span = 1;
@@ -214,10 +245,14 @@ void CalendarView::paintEvent(QPaintEvent *event)
             painter.drawText(monthRect, Qt::AlignCenter | Qt::AlignVCenter, QLocale().toString(date, QStringLiteral("MMMM yyyy")));
             day += span;
         }
+        painter.setPen(palette().windowText().color());
         painter.setFont(originalFont);
     }
 
     std::map<double, QColor> highlightLines;
+    painter.setPen(palette().dark().color());
+    painter.drawLine(QPointF(m_timeAxisWidth, monthBandHeight),
+                     QPointF(m_timeAxisWidth + m_dayWidth * m_dayCount, monthBandHeight));
     const QDate today = QDate::currentDate();
 
     for (int day = 0; day < m_dayCount; ++day) {
@@ -241,27 +276,51 @@ void CalendarView::paintEvent(QPaintEvent *event)
 
         const double padding = 6.0;
         QRectF contentRect = headerRect.adjusted(padding, padding / 2, -padding, -padding / 2);
-        const double dayBlockWidth = qBound(24.0, contentRect.width() * 0.25, 72.0);
-        QRectF dayRect(contentRect.left(), contentRect.top(), dayBlockWidth, contentRect.height());
-        QRectF infoRect(dayRect.right() + padding, contentRect.top(), contentRect.width() - dayBlockWidth - padding, contentRect.height());
 
+        const bool compactHeader = showMonthBand();
         QFont baseFont = painter.font();
-        QFont dayFont = baseFont;
-        dayFont.setBold(true);
-        dayFont.setPointSizeF(dayFont.pointSizeF() * 1.5);
-        painter.setFont(dayFont);
-        painter.drawText(dayRect, Qt::AlignLeft | Qt::AlignVCenter, dayText);
+        QFont boldFont = baseFont;
+        boldFont.setBold(true);
 
-        QFont infoFont = baseFont;
-        infoFont.setBold(false);
-        painter.setFont(infoFont);
-        QFontMetrics infoMetrics(infoFont);
-        QRectF weekdayRect(infoRect.left(), infoRect.top(), infoRect.width(), infoRect.height() / 2);
-        QRectF monthRect(infoRect.left(), infoRect.center().y(), infoRect.width(), infoRect.height() / 2);
-        const QString weekdayDisplay = weekdayForWidth(date, infoMetrics, weekdayRect.width());
-        const QString monthDisplay = monthYearForWidth(date, infoMetrics, monthRect.width());
-        painter.drawText(weekdayRect, Qt::AlignLeft | Qt::AlignVCenter, weekdayDisplay);
-        painter.drawText(monthRect, Qt::AlignLeft | Qt::AlignVCenter, monthDisplay);
+        if (compactHeader) {
+            QRectF weekdayRect(contentRect.left(),
+                               contentRect.top(),
+                               contentRect.width(),
+                               contentRect.height() * 0.35);
+            QRectF dayRect(contentRect.left(),
+                           weekdayRect.bottom(),
+                           contentRect.width(),
+                           contentRect.height() - weekdayRect.height());
+
+            QFont weekdayFont = fitFontToHeight(baseFont, weekdayRect.height(), 0.85);
+            painter.setFont(weekdayFont);
+            QFontMetrics weekdayMetrics(weekdayFont);
+            const QString weekdayDisplay = weekdayForWidth(date, weekdayMetrics, weekdayRect.width());
+            painter.drawText(weekdayRect, Qt::AlignLeft | Qt::AlignBottom, weekdayDisplay);
+
+            QFont dayFont = fitFontToHeight(boldFont, dayRect.height(), 1.2);
+            painter.setFont(dayFont);
+            painter.drawText(dayRect, Qt::AlignLeft | Qt::AlignBottom, dayText);
+        } else {
+            const double dayBlockWidth = qBound(24.0, contentRect.width() * 0.25, 72.0);
+            QRectF dayRect(contentRect.left(), contentRect.top(), dayBlockWidth, contentRect.height());
+            QRectF infoRect(dayRect.right() + padding, contentRect.top(), contentRect.width() - dayBlockWidth - padding, contentRect.height());
+
+            QFont dayFont = fitFontToHeight(boldFont, dayRect.height(), 1.5);
+            painter.setFont(dayFont);
+            painter.drawText(dayRect, Qt::AlignLeft | Qt::AlignVCenter, dayText);
+
+            QFont infoFont = baseFont;
+            infoFont.setBold(false);
+            painter.setFont(infoFont);
+            QFontMetrics infoMetrics(infoFont);
+            QRectF weekdayRect(infoRect.left(), infoRect.top(), infoRect.width(), infoRect.height() / 2);
+            QRectF monthRect(infoRect.left(), infoRect.center().y(), infoRect.width(), infoRect.height() / 2);
+            const QString weekdayDisplay = weekdayForWidth(date, infoMetrics, weekdayRect.width());
+            const QString monthDisplay = monthYearForWidth(date, infoMetrics, monthRect.width());
+            painter.drawText(weekdayRect, Qt::AlignLeft | Qt::AlignVCenter, weekdayDisplay);
+            painter.drawText(monthRect, Qt::AlignLeft | Qt::AlignVCenter, monthDisplay);
+        }
 
         if (isToday) {
             highlightLines[x] = QColor(0, 150, 0);
@@ -272,6 +331,7 @@ void CalendarView::paintEvent(QPaintEvent *event)
         }
     }
 
+    painter.setFont(originalFont);
     painter.setPen(palette().dark().color());
 
     const double clipHeight = qMax(0.0, static_cast<double>(viewport()->height()) - totalHeaderHeight);
