@@ -140,6 +140,22 @@ void CalendarView::paintEvent(QPaintEvent *event)
         painter.setPen(Qt::NoPen);
         painter.drawRoundedRect(rect, 4, 4);
 
+        if (eventData.id == m_hoveredEventId) {
+            const double handleHeight = 6.0;
+            QRectF topHandle(rect.x() + 6, rect.y() - handleHeight / 2, rect.width() - 12, handleHeight);
+            QRectF bottomHandle(rect.x() + 6, rect.bottom() - handleHeight / 2, rect.width() - 12, handleHeight);
+            QColor handleColor = palette().highlight().color().lighter(130);
+            handleColor.setAlpha(180);
+            painter.setBrush(handleColor);
+            painter.drawRoundedRect(topHandle, 3, 3);
+            painter.drawRoundedRect(bottomHandle, 3, 3);
+            painter.setPen(QPen(palette().base().color(), 1));
+            painter.drawLine(QPointF(topHandle.left() + 4, topHandle.center().y()),
+                             QPointF(topHandle.right() - 4, topHandle.center().y()));
+            painter.drawLine(QPointF(bottomHandle.left() + 4, bottomHandle.center().y()),
+                             QPointF(bottomHandle.right() - 4, bottomHandle.center().y()));
+        }
+
         painter.setPen(Qt::white);
         painter.drawText(rect.adjusted(4, 2, -4, -2),
                          Qt::TextWordWrap,
@@ -520,6 +536,10 @@ void CalendarView::emitHoverAt(const QPoint &pos)
     const QPointF scenePos = QPointF(pos) + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
     const double y = scenePos.y() - m_headerHeight;
     if (y < 0) {
+        if (!m_hoveredEventId.isNull()) {
+            m_hoveredEventId = QUuid();
+            viewport()->update();
+        }
         return;
     }
     const double hours = y / m_hourHeight;
@@ -528,10 +548,21 @@ void CalendarView::emitHoverAt(const QPoint &pos)
     const double x = scenePos.x() - m_timeAxisWidth;
     const int dayIndex = static_cast<int>(x / m_dayWidth);
     if (dayIndex < 0 || dayIndex >= m_dayCount) {
+        if (!m_hoveredEventId.isNull()) {
+            m_hoveredEventId = QUuid();
+            viewport()->update();
+        }
         return;
     }
     QDateTime dt(m_startDate.addDays(dayIndex), QTime(hour, minute));
     emit hoveredDateTime(dt);
+
+    const auto *hovered = eventAt(scenePos);
+    QUuid newId = hovered ? hovered->id : QUuid();
+    if (newId != m_hoveredEventId) {
+        m_hoveredEventId = newId;
+        viewport()->update();
+    }
 }
 
 int CalendarView::snapMinutes(double value) const

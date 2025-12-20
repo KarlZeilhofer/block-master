@@ -94,6 +94,7 @@ private:
     bool m_externalPlacementMode = false;
     int m_externalPlacementDuration = 0;
     QString m_externalPlacementLabel;
+    QUuid m_hoveredEventId;
 };
 
 } // namespace ui
