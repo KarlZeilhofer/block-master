@@ -39,6 +39,8 @@ add_library(calendar_ui STATIC
     include/calendar/ui/viewmodels/ScheduleViewModel.hpp
     src/ui/widgets/EventInlineEditor.cpp
     include/calendar/ui/widgets/EventInlineEditor.hpp
+    src/ui/widgets/EventPreviewPanel.cpp
+    include/calendar/ui/widgets/EventPreviewPanel.hpp
     src/ui/dialogs/EventDetailDialog.cpp
     include/calendar/ui/dialogs/EventDetailDialog.hpp
 )

@@ -15,7 +15,9 @@
 #include <QShortcut>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QtMath>
 #include <QToolBar>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QVariant>
@@ -31,6 +33,7 @@
 #include "calendar/ui/viewmodels/TodoListViewModel.hpp"
 #include "calendar/ui/widgets/CalendarView.hpp"
 #include "calendar/ui/widgets/EventInlineEditor.hpp"
+#include "calendar/ui/widgets/EventPreviewPanel.hpp"
 #include "calendar/ui/dialogs/EventDetailDialog.hpp"
 
 namespace calendar {
@@ -207,24 +210,43 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::eventActivated, this, [this](const data::CalendarEvent &event) {
         statusBar()->showMessage(tr("Termin: %1, %2").arg(event.title, event.start.toString()), 2500);
     });
-    connect(m_calendarView, &CalendarView::hoveredDateTime, this, [this](const QDateTime &dt) {
-        statusBar()->showMessage(tr("Cursor: %1").arg(dt.toString()), 1000);
-    });
+    connect(m_calendarView, &CalendarView::hoveredDateTime, this, &MainWindow::handleHoveredDateTime);
     connect(m_calendarView, &CalendarView::eventSelected, this, &MainWindow::handleEventSelected);
     connect(m_calendarView, &CalendarView::eventResizeRequested, this, &MainWindow::applyEventResize);
     connect(m_calendarView, &CalendarView::selectionCleared, this, &MainWindow::clearSelection);
     connect(m_calendarView, &CalendarView::todoDropped, this, &MainWindow::handleTodoDropped);
     connect(m_calendarView, &CalendarView::eventDropRequested, this, &MainWindow::handleEventDropRequested);
+    connect(m_calendarView, &CalendarView::externalPlacementConfirmed, this, &MainWindow::handlePlacementConfirmed);
 
     m_eventEditor = new EventInlineEditor(panel);
+    m_eventEditor->setVisible(false);
     connect(m_eventEditor, &EventInlineEditor::saveRequested, this, &MainWindow::saveEventEdits);
     connect(m_eventEditor, &EventInlineEditor::cancelRequested, this, [this]() {
         if (m_calendarView) {
             m_calendarView->setFocus();
         }
+        if (m_eventEditor) {
+            m_eventEditor->clearEditor();
+        }
     });
 
+    m_previewPanel = new EventPreviewPanel(panel);
+    m_previewPanel->setVisible(false);
+
     layout->addWidget(m_calendarView, 1);
+
+    auto *infoLayout = new QHBoxLayout();
+    infoLayout->setContentsMargins(8, 4, 8, 4);
+    infoLayout->addStretch();
+    auto *infoButton = new QToolButton(panel);
+    infoButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxInformation));
+    infoButton->setToolTip(tr("Details anzeigen (Space)"));
+    infoButton->setAutoRaise(true);
+    connect(infoButton, &QToolButton::clicked, this, &MainWindow::togglePreviewPanel);
+    infoLayout->addWidget(infoButton);
+    layout->addLayout(infoLayout);
+
+    layout->addWidget(m_previewPanel);
     layout->addWidget(m_eventEditor);
     return panel;
 }
@@ -259,22 +281,39 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
 
     m_editEventAction = toolbar->addAction(tr("Erweitert bearbeiten…"));
     m_editEventAction->setEnabled(false);
-    connect(m_editEventAction, &QAction::triggered, this, [this]() {
-        if (m_selectedEvent.id.isNull()) {
-            return;
-        }
-        if (!m_eventDetailDialog) {
-            m_eventDetailDialog = std::make_unique<EventDetailDialog>(this);
-        }
-        m_eventDetailDialog->setEvent(m_selectedEvent);
-        if (m_eventDetailDialog->exec() == QDialog::Accepted) {
-            auto updated = m_eventDetailDialog->event();
-            m_appContext->eventRepository().updateEvent(updated);
-            m_selectedEvent = updated;
-            refreshCalendar();
-            statusBar()->showMessage(tr("Termin aktualisiert"), 1500);
-        }
-    });
+    connect(m_editEventAction, &QAction::triggered, this, &MainWindow::openDetailDialog);
+
+    auto *inlineShortcut = new QShortcut(QKeySequence(Qt::Key_E), this);
+    inlineShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(inlineShortcut, &QShortcut::activated, this, &MainWindow::openInlineEditor);
+
+    auto *detailShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Return), this);
+    detailShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(detailShortcut, &QShortcut::activated, this, &MainWindow::openDetailDialog);
+
+    auto *previewShortcut = new QShortcut(QKeySequence(Qt::Key_Space), this);
+    previewShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(previewShortcut, &QShortcut::activated, this, &MainWindow::togglePreviewPanel);
+
+    auto *previewShortcutAlt = new QShortcut(QKeySequence(Qt::Key_I), this);
+    previewShortcutAlt->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(previewShortcutAlt, &QShortcut::activated, this, &MainWindow::togglePreviewPanel);
+
+    auto *copyShortcut = new QShortcut(QKeySequence::Copy, this);
+    copyShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(copyShortcut, &QShortcut::activated, this, &MainWindow::copySelection);
+
+    auto *pasteShortcut = new QShortcut(QKeySequence::Paste, this);
+    pasteShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(pasteShortcut, &QShortcut::activated, this, &MainWindow::pasteClipboard);
+
+    auto *duplicateShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_D), this);
+    duplicateShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(duplicateShortcut, &QShortcut::activated, this, &MainWindow::duplicateSelection);
+
+    auto *cancelPasteShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
+    cancelPasteShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(cancelPasteShortcut, &QShortcut::activated, this, &MainWindow::cancelPendingPlacement);
 }
 
 void MainWindow::goToday()
@@ -438,9 +477,10 @@ void MainWindow::handleEventSelected(const data::CalendarEvent &event)
     if (m_editEventAction) {
         m_editEventAction->setEnabled(true);
     }
-    if (m_eventEditor) {
-        m_eventEditor->setEvent(event);
+    if (m_previewVisible) {
+        showPreviewForSelection();
     }
+    showSelectionHint();
 }
 
 void MainWindow::saveEventEdits(const data::CalendarEvent &event)
@@ -448,8 +488,14 @@ void MainWindow::saveEventEdits(const data::CalendarEvent &event)
     auto updated = event;
     m_appContext->eventRepository().updateEvent(updated);
     m_selectedEvent = updated;
+    if (m_eventEditor) {
+        m_eventEditor->clearEditor();
+    }
     refreshCalendar();
     statusBar()->showMessage(tr("Termin gespeichert: %1").arg(updated.title), 1500);
+    if (m_previewVisible) {
+        showPreviewForSelection();
+    }
 }
 
 void MainWindow::applyEventResize(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd)
@@ -477,6 +523,11 @@ void MainWindow::clearSelection()
     if (m_eventEditor) {
         m_eventEditor->clearEditor();
     }
+    if (m_previewPanel) {
+        m_previewPanel->clearEvent();
+    }
+    m_previewVisible = false;
+    cancelPendingPlacement();
 }
 
 void MainWindow::handleTodoDropped(const QUuid &todoId, const QDateTime &start)
@@ -521,6 +572,180 @@ void MainWindow::handleEventDropRequested(const QUuid &eventId, const QDateTime 
         statusBar()->showMessage(tr("Termin verschoben"), 1500);
     }
     refreshCalendar();
+}
+
+void MainWindow::handlePlacementConfirmed(const QDateTime &start)
+{
+    if (!m_pendingPlacement) {
+        return;
+    }
+    QDateTime snapped = snapToQuarterHour(start);
+    pasteClipboardAt(snapped);
+    if (m_calendarView) {
+        m_calendarView->cancelPlacementPreview();
+    }
+    m_pendingPlacement = false;
+    statusBar()->showMessage(tr("Termin eingefügt"), 1500);
+}
+
+void MainWindow::handleHoveredDateTime(const QDateTime &dt)
+{
+    m_lastHoverDateTime = dt;
+    if (m_pendingPlacement && m_calendarView) {
+        m_calendarView->updatePlacementPreview(snapToQuarterHour(dt));
+    }
+    statusBar()->showMessage(tr("Cursor: %1").arg(dt.toString(Qt::ISODate)), 1000);
+}
+
+void MainWindow::openInlineEditor()
+{
+    if (m_selectedEvent.id.isNull() || !m_eventEditor) {
+        return;
+    }
+    cancelPendingPlacement();
+    m_previewVisible = false;
+    if (m_previewPanel) {
+        m_previewPanel->clearEvent();
+    }
+    m_eventEditor->setEvent(m_selectedEvent);
+    m_eventEditor->setVisible(true);
+    m_eventEditor->setFocus();
+}
+
+void MainWindow::openDetailDialog()
+{
+    if (m_selectedEvent.id.isNull()) {
+        return;
+    }
+    if (!m_eventDetailDialog) {
+        m_eventDetailDialog = std::make_unique<EventDetailDialog>(this);
+    }
+    m_eventDetailDialog->setEvent(m_selectedEvent);
+    if (m_eventDetailDialog->exec() == QDialog::Accepted) {
+        auto updated = m_eventDetailDialog->event();
+        m_appContext->eventRepository().updateEvent(updated);
+        m_selectedEvent = updated;
+        refreshCalendar();
+        statusBar()->showMessage(tr("Termin aktualisiert"), 1500);
+        if (m_previewVisible) {
+            showPreviewForSelection();
+        }
+    }
+}
+
+void MainWindow::togglePreviewPanel()
+{
+    if (!m_previewPanel || m_selectedEvent.id.isNull()) {
+        return;
+    }
+    cancelPendingPlacement();
+    if (m_eventEditor) {
+        m_eventEditor->clearEditor();
+    }
+    m_previewVisible = !m_previewVisible;
+    if (m_previewVisible) {
+        showPreviewForSelection();
+    } else {
+        m_previewPanel->clearEvent();
+    }
+}
+
+void MainWindow::showPreviewForSelection()
+{
+    if (!m_previewPanel || m_selectedEvent.id.isNull()) {
+        return;
+    }
+    m_previewPanel->setEvent(m_selectedEvent);
+    m_previewVisible = true;
+}
+
+void MainWindow::showSelectionHint()
+{
+    statusBar()->showMessage(tr("Shortcuts: ⏎ Details • E Inline • Ctrl+C Copy • Ctrl+V Paste • Ctrl+D Duplizieren • Del Löschen • Space Info"), 3500);
+}
+
+void MainWindow::copySelection()
+{
+    if (m_selectedEvent.id.isNull()) {
+        return;
+    }
+    m_clipboardEvents.clear();
+    m_clipboardEvents.push_back(m_selectedEvent);
+    statusBar()->showMessage(tr("Termin kopiert: %1").arg(m_selectedEvent.title), 1500);
+}
+
+void MainWindow::pasteClipboard()
+{
+    if (m_clipboardEvents.empty()) {
+        return;
+    }
+    if (!m_calendarView) {
+        return;
+    }
+    cancelPendingPlacement();
+    const auto &first = m_clipboardEvents.front();
+    m_pendingPlacementDuration = qMax(30, static_cast<int>(first.start.secsTo(first.end) / 60));
+    m_pendingPlacementLabel = first.title.isEmpty() ? tr("(Ohne Titel)") : first.title;
+    m_pendingPlacement = true;
+    QDateTime target = m_lastHoverDateTime.isValid() ? m_lastHoverDateTime : QDateTime(m_currentDate, QTime::currentTime());
+    target = snapToQuarterHour(target);
+    m_calendarView->beginPlacementPreview(m_pendingPlacementDuration, m_pendingPlacementLabel, target);
+    statusBar()->showMessage(tr("Klick zum Einfügen – Esc bricht ab"), 4000);
+}
+
+void MainWindow::duplicateSelection()
+{
+    if (m_selectedEvent.id.isNull()) {
+        return;
+    }
+    m_clipboardEvents = { m_selectedEvent };
+    QDateTime target = m_selectedEvent.start.addSecs(30 * 60);
+    target = snapToQuarterHour(target);
+    pasteClipboardAt(target);
+}
+
+void MainWindow::pasteClipboardAt(const QDateTime &targetStart)
+{
+    if (m_clipboardEvents.empty()) {
+        return;
+    }
+    const auto baseStart = m_clipboardEvents.front().start;
+    for (const auto &event : m_clipboardEvents) {
+        data::CalendarEvent copy = event;
+        copy.id = QUuid::createUuid();
+        const qint64 offset = baseStart.secsTo(event.start);
+        const qint64 duration = event.start.secsTo(event.end);
+        copy.start = targetStart.addSecs(offset);
+        copy.end = copy.start.addSecs(duration);
+        m_appContext->eventRepository().addEvent(copy);
+    }
+    refreshCalendar();
+    statusBar()->showMessage(tr("%1 Termin(e) eingefügt").arg(m_clipboardEvents.size()), 2000);
+}
+
+QDateTime MainWindow::snapToQuarterHour(const QDateTime &dt) const
+{
+    if (!dt.isValid()) {
+        return dt;
+    }
+    int minutes = dt.time().hour() * 60 + dt.time().minute();
+    const double ratio = static_cast<double>(minutes) / 15.0;
+    int snapped = static_cast<int>(qRound(ratio) * 15);
+    snapped = qBound(0, snapped, 23 * 60 + 45);
+    int hour = snapped / 60;
+    int minute = snapped % 60;
+    return QDateTime(dt.date(), QTime(hour, minute));
+}
+
+void MainWindow::cancelPendingPlacement()
+{
+    if (!m_pendingPlacement) {
+        return;
+    }
+    m_pendingPlacement = false;
+    if (m_calendarView) {
+        m_calendarView->cancelPlacementPreview();
+    }
 }
 
 } // namespace ui

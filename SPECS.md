@@ -51,14 +51,15 @@ Hauptaufgaben:
 
 ## 6. Editing-Flows
 ### 6.1 Direktes Editieren
-- Single-Click wählt Event, Double-Click öffnet Inline-Editor (Titel, Zeitspanne, Ort).
-- Direkte Daueranpassung über Drag an oberen/unteren Griffpunkten.
-- Keyboard-Editing: `Enter` startet Inline-Edit, `Tab` springt zwischen Feldern.
+- **Select-first-Prinzip**: Single-Click markiert ein Event, löst aber keine Editieransicht aus; erst explizite Aktionen (Shortcut, Button, Kontext) starten das Editing.
+- Shift/Strg-Klick erweitert/separiert Mehrfachauswahl; `Esc` hebt die Auswahl auf, ohne Panels anzuzeigen.
+- Direkte Daueranpassung über Drag an oberen/unteren Griffpunkten, Inline-Editor wird dabei nur auf Wunsch (Shortcut `E`) eingeblendet.
+- Keyboard-Editing: `Enter` öffnet den Inline-Editor, `Tab` springt zwischen Feldern, `Alt+Enter` speichert und bleibt im Editor.
 
 ### 6.2 Erweitertes Editieren
-- Seitenpanel oder modaler Dialog mit Feldern für Beschreibung, Teilnehmer, Erinnerungen, Kategorien, Wiederholungen.
-- Zugriff via `Ctrl+E` oder Kontextmenü „Erweitert bearbeiten…“.
-- Validation erst bei Speichern, Auto-Speichern nach Fokusverlust.
+- Kontextsensitives Detail-Panel (Dock rechts) zeigt eine **Preview-Karte** mit den wichtigsten Feldern und einer Shortcut-Leiste (z. B. `⏎ Edit`, `⌘C Copy`, `Del Löschen`). Dieses Panel öffnet sich nur, wenn explizit `Space` oder `I` gedrückt wird bzw. der Nutzer auf das Info-Icon klickt.
+- Vollbild-Dialog für komplexe Felder (Beschreibung, Teilnehmer, Erinnerungen, Kategorien, Wiederholungen) wird über `Ctrl+Enter` oder Toolbar „Details…“ ausgelöst.
+- Validation erst bei Speichern, Auto-Speichern nach Fokusverlust; Preview aktualisiert sich live.
 
 ### 6.3 Drag & Drop
 - TODO aus linker Liste auf Zeit-Slot ziehen → Termin erzeugen, TODO verschwindet (oder wechselt in Status „geplant“).
@@ -66,6 +67,16 @@ Hauptaufgaben:
 - Drag-Klonen via `Ctrl`: kopiert Termin.
 - Snap-Regeln: Raster 5 Minuten, Halten von `Alt` erlaubt freie Positionierung.
 - Während des Draggens zeigt ein halbtransparentes Ghost-Objekt die erwartete Zielposition (am gleichen Raster), damit Nutzer das Ergebnis sehen, bevor sie loslassen.
+- Der Inline-Editor bleibt während Drag-Vorgängen geschlossen; Feedback erfolgt ausschließlich über das Ghost-Overlay und Status-Bar-Botschaften.
+
+### 6.4 Interaktionsworkflow & Shortcuts
+- **Select**: Klick oder Pfeiltasten; Status-Bar blendet eine Mini-Legende ein („⏎ Edit | E Inline | Ctrl+D Duplicate | Del löschen“). Die Legende ist dezent (grau) und verschwindet nach 2 s ohne Interaktion.
+- **Copy/Paste**: `Ctrl+C` kopiert ausgewählte Events in die Zwischenablage (inkl. Dauer), `Ctrl+V` fügt am Cursor/Zeitpunkt ein; Info-Legende zeigt diese Kürzel beim ersten Anwählen eines Events an.
+- **Drag'n'Drop**: Ziehen bewegt Termine, `Ctrl+Drag` erstellt Klone, `Shift+Drag` beschränkt Bewegungen auf die Zeitachse (kein Datumssprung).
+- **Delete**: `Del` / `Backspace` löscht mit Undo-Hinweis in der Status-Bar.
+- **Edit**: `E` öffnet Inline-Editor am ausgewählten Event; `Ctrl+E` bzw. Toolbar öffnet Detail-Dialog, ohne automatische Anzeige beim Verschieben.
+- **Details-Preview**: `Space` oder Klick auf das Info-Symbol blendet das Preview-Panel ein; erneut `Space` schließt es.
+- **Paste-Kontext**: Beim Einfügen zeigt ein kontextuelles Toast („Eingefügt um 10:15 – Esc rückgängig“) die Aktion. Alle HUD/Legenden-Einblendungen sind im Layout vorgesehen (dezent, keine Modalität), damit Nutzer ohne Handbuch lernen können.
 
 ## 7. Tastaturbedienung
 - Navigation:

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QWidget>
+#include <QShortcut>
 
 #include "calendar/data/Event.hpp"
 
@@ -39,6 +40,8 @@ private:
     QPlainTextEdit *m_descriptionEdit = nullptr;
     QPushButton *m_saveButton = nullptr;
     QPushButton *m_cancelButton = nullptr;
+    QShortcut *m_saveShortcut = nullptr;
+    QShortcut *m_escapeShortcut = nullptr;
 };
 
 } // namespace ui

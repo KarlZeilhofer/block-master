@@ -5,6 +5,7 @@
 #include <QVector>
 #include <optional>
 #include <vector>
+#include <QString>
 
 #include "calendar/data/Event.hpp"
 
@@ -31,6 +32,12 @@ signals:
     void selectionCleared();
     void todoDropped(const QUuid &todoId, const QDateTime &start);
     void eventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
+    void externalPlacementConfirmed(const QDateTime &start);
+
+public:
+    void beginPlacementPreview(int durationMinutes, const QString &label, const QDateTime &initialStart);
+    void updatePlacementPreview(const QDateTime &start);
+    void cancelPlacementPreview();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -84,6 +91,9 @@ private:
     bool m_showDropPreview = false;
     QRectF m_dropPreviewRect;
     QString m_dropPreviewText;
+    bool m_externalPlacementMode = false;
+    int m_externalPlacementDuration = 0;
+    QString m_externalPlacementLabel;
 };
 
 } // namespace ui

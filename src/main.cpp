@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
     calendar::ui::MainWindow mainWindow;
-    mainWindow.show();
+    mainWindow.showMaximized();
 
     return app.exec();
 }

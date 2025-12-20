@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QModelIndex>
 #include <memory>
+#include <vector>
 
 #include "calendar/data/Event.hpp"
 
@@ -12,6 +13,7 @@ class QListView;
 class QLineEdit;
 class QComboBox;
 class QLabel;
+class QShortcut;
 
 namespace calendar {
 namespace core {
@@ -26,6 +28,7 @@ class ScheduleViewModel;
 class CalendarView;
 class EventInlineEditor;
 class EventDetailDialog;
+class EventPreviewPanel;
 
 class MainWindow : public QMainWindow
 {
@@ -59,6 +62,19 @@ private:
     void clearSelection();
     void handleTodoDropped(const QUuid &todoId, const QDateTime &start);
     void handleEventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
+    void handlePlacementConfirmed(const QDateTime &start);
+    void handleHoveredDateTime(const QDateTime &dt);
+    void openInlineEditor();
+    void openDetailDialog();
+    void togglePreviewPanel();
+    void showPreviewForSelection();
+    void showSelectionHint();
+    void copySelection();
+    void pasteClipboard();
+    void duplicateSelection();
+    void pasteClipboardAt(const QDateTime &targetStart);
+    QDateTime snapToQuarterHour(const QDateTime &dt) const;
+    void cancelPendingPlacement();
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;
@@ -68,10 +84,17 @@ private:
     CalendarView *m_calendarView = nullptr;
     QLabel *m_viewInfoLabel = nullptr;
     EventInlineEditor *m_eventEditor = nullptr;
+    EventPreviewPanel *m_previewPanel = nullptr;
     std::unique_ptr<EventDetailDialog> m_eventDetailDialog;
+    bool m_previewVisible = false;
     QDate m_currentDate;
     int m_visibleDays = 5;
     data::CalendarEvent m_selectedEvent;
+    QDateTime m_lastHoverDateTime;
+    std::vector<data::CalendarEvent> m_clipboardEvents;
+    bool m_pendingPlacement = false;
+    int m_pendingPlacementDuration = 60;
+    QString m_pendingPlacementLabel;
     std::unique_ptr<core::AppContext> m_appContext;
     std::unique_ptr<TodoListViewModel> m_todoViewModel;
     std::unique_ptr<TodoFilterProxyModel> m_todoProxyModel;

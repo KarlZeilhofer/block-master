@@ -7,6 +7,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QShortcut>
 
 namespace calendar {
 namespace ui {
@@ -54,6 +55,12 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
 
     connect(m_saveButton, &QPushButton::clicked, this, &EventInlineEditor::handleSave);
     connect(m_cancelButton, &QPushButton::clicked, this, &EventInlineEditor::handleCancel);
+
+    m_saveShortcut = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_Return), this);
+    connect(m_saveShortcut, &QShortcut::activated, this, &EventInlineEditor::handleSave);
+
+    m_escapeShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
+    connect(m_escapeShortcut, &QShortcut::activated, this, &EventInlineEditor::handleSave);
 }
 
 void EventInlineEditor::setEvent(const data::CalendarEvent &event)

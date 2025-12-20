@@ -205,10 +205,29 @@ void CalendarView::wheelEvent(QWheelEvent *event)
 
 void CalendarView::mousePressEvent(QMouseEvent *event)
 {
+    const QPointF scenePos = QPointF(event->pos())
+        + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+    if (m_externalPlacementMode && event->button() == Qt::LeftButton) {
+        auto dateTimeOpt = dateTimeAtScene(scenePos);
+        if (dateTimeOpt.has_value()) {
+            QDateTime dateTime = dateTimeOpt.value();
+            int minutes = snapMinutes(dateTime.time().hour() * 60 + dateTime.time().minute());
+            dateTime.setTime(QTime(minutes / 60, minutes % 60));
+            cancelPlacementPreview();
+            emit externalPlacementConfirmed(dateTime);
+        } else {
+            cancelPlacementPreview();
+        }
+        event->accept();
+        return;
+    }
+    if (m_externalPlacementMode && event->button() == Qt::RightButton) {
+        cancelPlacementPreview();
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::LeftButton) {
         m_pressPos = event->pos();
-        const QPointF scenePos = QPointF(event->pos())
-            + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
         resetDragCandidate();
         for (const auto &ev : m_events) {
             const QRectF rect = eventRect(ev);
@@ -291,6 +310,7 @@ void CalendarView::mouseReleaseEvent(QMouseEvent *event)
 
 void CalendarView::dragEnterEvent(QDragEnterEvent *event)
 {
+    cancelPlacementPreview();
     const auto *mime = event->mimeData();
     if (mime->hasFormat(TodoMimeType) || mime->hasFormat(EventMimeType)) {
         event->acceptProposedAction();
@@ -420,6 +440,33 @@ void CalendarView::dropEvent(QDropEvent *event)
 void CalendarView::dragLeaveEvent(QDragLeaveEvent *event)
 {
     Q_UNUSED(event);
+    clearDropPreview();
+}
+
+void CalendarView::beginPlacementPreview(int durationMinutes, const QString &label, const QDateTime &initialStart)
+{
+    m_externalPlacementMode = true;
+    m_externalPlacementDuration = durationMinutes;
+    m_externalPlacementLabel = label;
+    updatePlacementPreview(initialStart);
+}
+
+void CalendarView::updatePlacementPreview(const QDateTime &start)
+{
+    if (!m_externalPlacementMode) {
+        return;
+    }
+    updateDropPreview(start, m_externalPlacementDuration, m_externalPlacementLabel);
+}
+
+void CalendarView::cancelPlacementPreview()
+{
+    if (!m_externalPlacementMode) {
+        return;
+    }
+    m_externalPlacementMode = false;
+    m_externalPlacementDuration = 0;
+    m_externalPlacementLabel.clear();
     clearDropPreview();
 }
 
