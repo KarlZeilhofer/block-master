@@ -1068,6 +1068,7 @@ void CalendarView::updateTodoHoverFeedback()
     }
     m_currentTodoHoverStatus = status;
     if (status.has_value()) {
+        clearDropPreview();
         emit todoHoverPreviewRequested(status.value(), m_internalDragSource);
     } else {
         emit todoHoverPreviewCleared();

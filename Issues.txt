@@ -58,10 +58,10 @@ Zeige die aktuelle Uhrzeit als horizontale Linie am heutigen Tag in roter Farbe.
 
 WIP ################################
 
-Wird ein Event in die Todo-Leiste gezogen, dann sollt dort auch ein Ghost-Element angezeigt werden. 
-
 
 DONE ###############################
+Wird ein Event in die Todo-Leiste gezogen, dann sollt dort auch ein Ghost-Element angezeigt werden. 
+
 Wird ein Event in die Todo-Liste gezogen, soll dem TODO die Dauer des Tasks erhalten bleiben.
 Es braucht daher eine neue Eigenschaft "duration" für TODOs. Könnte man auch mit dem universellen
 UNIX timestamp lösen: Beginnt um 0:00 am 1.1.1970 und endet entsprchend später. Mit diesem Spezialfall
