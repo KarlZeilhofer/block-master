@@ -704,9 +704,7 @@ void MainWindow::duplicateSelection()
         return;
     }
     m_clipboardEvents = { m_selectedEvent };
-    QDateTime target = m_selectedEvent.start.addSecs(30 * 60);
-    target = snapToQuarterHour(target);
-    pasteClipboardAt(target);
+    pasteClipboard();
 }
 
 void MainWindow::pasteClipboardAt(const QDateTime &targetStart)
