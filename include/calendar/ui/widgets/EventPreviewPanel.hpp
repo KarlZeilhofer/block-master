@@ -19,7 +19,6 @@ public:
 
     void setEvent(const data::CalendarEvent &event);
     void setTodo(const data::TodoItem &todo);
-    void clearEvent();
     void clearPreview();
 
 private:

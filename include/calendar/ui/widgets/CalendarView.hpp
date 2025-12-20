@@ -43,6 +43,7 @@ public:
     void beginPlacementPreview(int durationMinutes, const QString &label, const QDateTime &initialStart);
     void updatePlacementPreview(const QDateTime &start);
     void cancelPlacementPreview();
+    void clearExternalSelection();
 
 protected:
     void paintEvent(QPaintEvent *event) override;

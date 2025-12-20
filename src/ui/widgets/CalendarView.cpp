@@ -603,6 +603,12 @@ void CalendarView::cancelPlacementPreview()
     clearDropPreview();
 }
 
+void CalendarView::clearExternalSelection()
+{
+    m_selectedEvent = QUuid();
+    viewport()->update();
+}
+
 QRectF CalendarView::eventRect(const data::CalendarEvent &event) const
 {
     const int dayIndex = m_startDate.daysTo(event.start.date());

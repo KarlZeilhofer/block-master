@@ -62,6 +62,7 @@ private:
     void scrollVisibleDays(int deltaDays);
     void handleEventSelected(const data::CalendarEvent &event);
     void saveEventEdits(const data::CalendarEvent &event);
+    void saveTodoEdits(const data::TodoItem &todo);
     void applyEventResize(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd);
     void clearSelection();
     void handleTodoDropped(const QUuid &todoId, const QDateTime &start);

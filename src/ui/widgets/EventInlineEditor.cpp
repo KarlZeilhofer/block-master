@@ -3,6 +3,7 @@
 #include <QDateTimeEdit>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -38,6 +39,8 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
     m_endEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd hh:mm"));
     m_endEdit->setCalendarPopup(true);
     formLayout->addRow(tr("Ende"), m_endEdit);
+    m_startLabel = qobject_cast<QLabel *>(formLayout->labelForField(m_startEdit));
+    m_endLabel = qobject_cast<QLabel *>(formLayout->labelForField(m_endEdit));
 
     m_descriptionEdit = new QPlainTextEdit(this);
     m_descriptionEdit->setPlaceholderText(tr("Beschreibung"));
@@ -65,26 +68,77 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
 
 void EventInlineEditor::setEvent(const data::CalendarEvent &event)
 {
+    m_isTodo = false;
     m_event = event;
     m_titleEdit->setText(event.title);
     m_locationEdit->setText(event.location);
     m_startEdit->setDateTime(event.start);
     m_endEdit->setDateTime(event.end);
     m_descriptionEdit->setPlainText(event.description);
+    if (m_startLabel) {
+        m_startLabel->setText(tr("Start"));
+    }
+    if (m_endLabel) {
+        m_endLabel->setText(tr("Ende"));
+        m_endLabel->setVisible(true);
+    }
+    m_endEdit->setVisible(true);
+    setVisible(true);
+}
+
+void EventInlineEditor::setTodo(const data::TodoItem &todo)
+{
+    m_isTodo = true;
+    m_todo = todo;
+    m_titleEdit->setText(todo.title);
+    m_locationEdit->setText(todo.location);
+    if (todo.dueDate.isValid()) {
+        m_startEdit->setDateTime(todo.dueDate);
+    } else {
+        m_startEdit->setDateTime(QDateTime::currentDateTime());
+    }
+    m_endEdit->setVisible(false);
+    if (m_endLabel) {
+        m_endLabel->setVisible(false);
+    }
+    if (m_startLabel) {
+        m_startLabel->setText(tr("Fällig"));
+    }
+    m_descriptionEdit->setPlainText(todo.description);
     setVisible(true);
 }
 
 void EventInlineEditor::clearEditor()
 {
     m_event = data::CalendarEvent();
+    m_todo = data::TodoItem();
     m_titleEdit->clear();
     m_locationEdit->clear();
     m_descriptionEdit->clear();
+    m_startEdit->setDateTime(QDateTime::currentDateTime());
+    m_endEdit->setDateTime(QDateTime::currentDateTime().addSecs(30 * 60));
+    if (m_startLabel) {
+        m_startLabel->setText(tr("Start"));
+    }
+    if (m_endLabel) {
+        m_endLabel->setText(tr("Ende"));
+        m_endLabel->setVisible(true);
+    }
+    m_endEdit->setVisible(true);
+    m_isTodo = false;
     setVisible(false);
 }
 
 void EventInlineEditor::handleSave()
 {
+    if (m_isTodo) {
+        m_todo.title = m_titleEdit->text();
+        m_todo.location = m_locationEdit->text();
+        m_todo.dueDate = m_startEdit->dateTime();
+        m_todo.description = m_descriptionEdit->toPlainText();
+        emit saveTodoRequested(m_todo);
+        return;
+    }
     m_event.title = m_titleEdit->text();
     m_event.location = m_locationEdit->text();
     m_event.start = m_startEdit->dateTime();

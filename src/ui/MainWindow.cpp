@@ -231,6 +231,7 @@ QWidget *MainWindow::createCalendarView()
     m_eventEditor = new EventInlineEditor(panel);
     m_eventEditor->setVisible(false);
     connect(m_eventEditor, &EventInlineEditor::saveRequested, this, &MainWindow::saveEventEdits);
+    connect(m_eventEditor, &EventInlineEditor::saveTodoRequested, this, &MainWindow::saveTodoEdits);
     connect(m_eventEditor, &EventInlineEditor::cancelRequested, this, [this]() {
         if (m_calendarView) {
             m_calendarView->setFocus();
@@ -545,6 +546,22 @@ void MainWindow::saveEventEdits(const data::CalendarEvent &event)
     }
 }
 
+void MainWindow::saveTodoEdits(const data::TodoItem &todo)
+{
+    auto updated = todo;
+    const bool ok = m_appContext->todoRepository().updateTodo(updated);
+    if (!ok) {
+        statusBar()->showMessage(tr("TODO konnte nicht gespeichert werden"), 1500);
+        return;
+    }
+    m_selectedTodo = updated;
+    refreshTodos();
+    statusBar()->showMessage(tr("TODO gespeichert: %1").arg(updated.title), 1500);
+    if (m_previewVisible) {
+        showPreviewForSelection();
+    }
+}
+
 void MainWindow::applyEventResize(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd)
 {
     auto existing = m_appContext->eventRepository().findById(id);
@@ -564,6 +581,7 @@ void MainWindow::applyEventResize(const QUuid &id, const QDateTime &newStart, co
 void MainWindow::clearSelection()
 {
     m_selectedEvent = data::CalendarEvent();
+    m_selectedTodo.reset();
     if (m_editEventAction) {
         m_editEventAction->setEnabled(false);
     }
@@ -610,7 +628,11 @@ void MainWindow::handleTodoSelectionChanged()
     }
     const auto indexes = selectionModel->selectedIndexes();
     if (indexes.isEmpty()) {
+        bool hadTodo = m_selectedTodo.has_value();
         m_selectedTodo.reset();
+        if (hadTodo && m_eventEditor && m_eventEditor->isTodoMode()) {
+            m_eventEditor->clearEditor();
+        }
         if (m_previewVisible && m_selectedEvent.id.isNull() && m_previewPanel) {
             m_previewPanel->clearPreview();
             m_previewVisible = false;
@@ -623,6 +645,9 @@ void MainWindow::handleTodoSelectionChanged()
         m_selectedEvent = data::CalendarEvent();
         if (m_editEventAction) {
             m_editEventAction->setEnabled(false);
+        }
+        if (m_calendarView) {
+            m_calendarView->clearExternalSelection();
         }
         cancelPendingPlacement();
         if (m_previewVisible) {
@@ -699,7 +724,7 @@ void MainWindow::handleHoveredDateTime(const QDateTime &dt)
 
 void MainWindow::openInlineEditor()
 {
-    if (m_selectedEvent.id.isNull() || !m_eventEditor) {
+    if (!m_eventEditor) {
         return;
     }
     cancelPendingPlacement();
@@ -707,9 +732,17 @@ void MainWindow::openInlineEditor()
     if (m_previewPanel) {
         m_previewPanel->clearPreview();
     }
-    m_eventEditor->setEvent(m_selectedEvent);
-    m_eventEditor->setVisible(true);
-    m_eventEditor->setFocus();
+    if (!m_selectedEvent.id.isNull()) {
+        m_eventEditor->setEvent(m_selectedEvent);
+        m_eventEditor->setVisible(true);
+        m_eventEditor->setFocus();
+        return;
+    }
+    if (m_selectedTodo.has_value()) {
+        m_eventEditor->setTodo(*m_selectedTodo);
+        m_eventEditor->setVisible(true);
+        m_eventEditor->setFocus();
+    }
 }
 
 void MainWindow::openDetailDialog()

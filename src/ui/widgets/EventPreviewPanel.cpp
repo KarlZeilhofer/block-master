@@ -76,11 +76,6 @@ void EventPreviewPanel::setTodo(const data::TodoItem &todo)
     setVisible(true);
 }
 
-void EventPreviewPanel::clearEvent()
-{
-    clearPreview();
-}
-
 void EventPreviewPanel::clearPreview()
 {
     m_titleLabel->setText(tr("Kein Termin ausgewählt"));
