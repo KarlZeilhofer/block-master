@@ -20,8 +20,6 @@ public:
     EventRepository &eventRepository();
 
 private:
-    void seedDemoData();
-
     std::shared_ptr<FileCalendarStorage> m_calendarStorage;
     std::unique_ptr<TodoRepository> m_todoRepository;
     std::unique_ptr<EventRepository> m_eventRepository;

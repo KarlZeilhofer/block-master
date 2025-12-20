@@ -15,8 +15,8 @@ Autoreifen kaufen
 
 Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
 
-Entferne die Dummy-Erzeugung im Quellcode - durch das Laden der Persistenten Daten ist das nicht mehr nötig. 
 
+Entfernen von TODOs per Delete-Taste
 
 Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht an der oberen Kante. 
 
@@ -42,6 +42,9 @@ WIP ################################
 
 
 DONE ###############################
+
+Entferne die Dummy-Erzeugung im Quellcode - durch das Laden der Persistenten Daten ist das nicht mehr nötig. 
+
 
 Ein Neuer Event soll im Kalender durch Drag in der Zeitleiste erstellt werden können. 
 Somit sind Start und Endzeitpunkt fixiert. Dann popt der InlineEditor auf, und man kann dann den Titel direkt eingeben. 
