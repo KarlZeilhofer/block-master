@@ -1,22 +1,37 @@
 #include "calendar/data/DataProvider.hpp"
 
-#include "calendar/data/InMemoryEventRepository.hpp"
-#include "calendar/data/InMemoryTodoRepository.hpp"
+#include "calendar/data/FileCalendarStorage.hpp"
+#include "calendar/data/FileEventRepository.hpp"
+#include "calendar/data/FileTodoRepository.hpp"
 #include "calendar/data/Todo.hpp"
 #include "calendar/data/TodoRepository.hpp"
 
 #include <QDate>
 #include <QDateTime>
+#include <QDir>
 #include <QTime>
 #include <QObject>
+#include <QStandardPaths>
 
 namespace calendar {
 namespace data {
 
 DataProvider::DataProvider()
-    : m_todoRepository(std::make_unique<InMemoryTodoRepository>())
-    , m_eventRepository(std::make_unique<InMemoryEventRepository>())
 {
+    QString storageFolder = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (storageFolder.isEmpty()) {
+        storageFolder = QDir::homePath() + QStringLiteral("/.local/share/task-master");
+    }
+    QDir dir(storageFolder);
+    if (!dir.exists()) {
+        dir.mkpath(QStringLiteral("."));
+    }
+    const QString filePath = dir.filePath(QStringLiteral("default.ics"));
+
+    m_calendarStorage = std::make_shared<FileCalendarStorage>(filePath);
+    m_todoRepository = std::make_unique<FileTodoRepository>(m_calendarStorage);
+    m_eventRepository = std::make_unique<FileEventRepository>(m_calendarStorage);
+
     seedDemoData();
 }
 

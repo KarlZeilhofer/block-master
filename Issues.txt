@@ -1,0 +1,61 @@
+
+
+Ein Spezieller Einfüge-Modus soll aus einem Plaintext (z.B. aus einem Texteditor) pro Zeile ein TODO erzeugen können. 
+Ist das Erste Zeichen ein Tabulator, dann ist es eine Zeile in der Beschreibung zum TODO. Beispiel:
+
+----------------
+Einkaufen gehen
+    Eier
+    Milch
+    Wein
+Autoreifen kaufen
+    19 Zoll, 245/60/R19
+-----------------
+
+
+
+
+Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht an der oberen Kante. 
+
+
+Cursor-Position braucht nicht in der Statusleiste angezeigt werden. Völlig unnötig. Zeige lieber Shortcuts an. 
+
+Manchmal kommt es dazu, dass der Inline-Editor aufpoppt, wenn man einen Termin an den Handles zieht. 
+Das passiert immer dann, wenn der Event zuvor per dragndrop verschoben wurde. 
+
+
+
+Die Texte in der Titelzeile sind nicht immer lesbar, je nachdem, wie breit die Spalten sind. 
+Reduziere die Anzeige für Wochentag und Monat/Jahre Stufenweise: 
+Samstag -> Sams > Sa
+Dezember 2025 -> Dez 25 > Dz25
+Die Monate in der kürzesten Schreibweise: Jn Fb Mz Ap Ma Jn Jl Ag Sp Ok Nv Dz
+Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datum. 
+
+
+WIP
+Bennenne die App um auf "Task Master". 
+
+
+
+DONE
+Ein Event soll per Drag'n'Drop auch wieder in die Todoleite verschoben werden können. D.h. er verliert dann den Zeitbezug. 
+Das "Details Anzeigen" soll auch für ausgewählte TODOs funktionieren. Ein TODO kann entsprechend neben Titel auch Ort und Beschreibung haben.  
+
+Während Drag funktioniert der horizontale scroll nicht mehr. Das hatte schon mal funktioniert, ging aber mit dem Sticky Header verloren. 
+
+Der heutige Tag soll durch fettere vertikale Gitterlinien hervorgehoben werden. Mach diese beiden Gitterlinien 3 pixel breit und grün. 
+Monatsgrenzen sollen auch durch solch eine Linie gekennzeichnet werden, aber in schwarz. 
+
+Die Titelzeile der Tabelle muss immer sichtbar sein, ansonsten weiß man ja nicht, bei welchem Tag man sich befindet. 
+Stelle Sonntage immer rot dar in der Titelzeile
+Schreib das Datum 2-zeilig in 3 Blöcke: Monatstag groß und fett linksbündig, rechts daneben 2 zeilen: oben Wochentag, darunter Monat + Jahr. 
+
+Die App soll standardmäßig mit 9 sichtbaren Kalendertagen starten, wobei der linke Tag immer ein Montag ist. Somit sieht man auch immer noch Montag+Dienstag der nächsten Woche. 
+Es braucht keinen horizontalen Scrollbalken, da es unendlich viele Tage links und rechts gibt. 
+horizontales scrollen soll nun exakt einen Tag scrollen - damit verlässt man die verankerung mit Montag als erster Tag. Mit den Cursortasten soll wochenweise verschoben werden können, also immer um 7 Tage, wobei die erste Aktion die
+  darstellung wieder an einem Montag ausrichtet.
+
+Strg+D muss sich identisch verhalten wie Strg+C plus Strg+V. Man bekommt also ein Ghost-Objekt unter dem Cursor. 
+
+Top und Bottom Handles müssen auch funktioniern, wenn man außerhalb des Objektes mit dem Cursor ist. Es braucht also einen Interaktionsbereich, der symmetrisch zum Handle sein soll. Gibt es einen direkt angrenzenden Kalendereintrag, wird das verhalten asymmetrisch und somit wieder eindeutig für beide Objekte. Die Handles sollen auch nur dann angezeigt werden, wenn der maus cursor in diesem interaktionsbereich ist. D.h. beide müssen voneinander unabhängig ein/ausgebledet werden. 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(CalendarApp VERSION 0.1.0 LANGUAGES CXX)
+project(TaskMaster VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,6 +13,9 @@ add_library(calendar_data STATIC
     src/data/DataProvider.cpp
     src/data/InMemoryTodoRepository.cpp
     src/data/InMemoryEventRepository.cpp
+    src/data/FileCalendarStorage.cpp
+    src/data/FileEventRepository.cpp
+    src/data/FileTodoRepository.cpp
 )
 target_include_directories(calendar_data PUBLIC include)
 target_link_libraries(calendar_data PUBLIC Qt5::Core)
@@ -47,12 +50,12 @@ add_library(calendar_ui STATIC
 target_include_directories(calendar_ui PUBLIC include)
 target_link_libraries(calendar_ui PUBLIC Qt5::Widgets calendar_core calendar_data)
 
-add_executable(calendar_app
+add_executable(task-master
     src/main.cpp
 )
-target_link_libraries(calendar_app PRIVATE calendar_ui calendar_core calendar_data)
+target_link_libraries(task-master PRIVATE calendar_ui calendar_core calendar_data)
 
-install(TARGETS calendar_app
+install(TARGETS task-master
     RUNTIME DESTINATION bin
 )
 

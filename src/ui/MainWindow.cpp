@@ -58,7 +58,7 @@ MainWindow::~MainWindow() = default;
 
 void MainWindow::setupUi()
 {
-    setWindowTitle(tr("Calendar App (Prototype)"));
+    setWindowTitle(tr("Task Master"));
     resize(1200, 800);
 
     auto *toolbar = createNavigationBar();

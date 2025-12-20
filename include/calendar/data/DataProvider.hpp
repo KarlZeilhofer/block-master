@@ -1,12 +1,14 @@
 #pragma once
 
 #include <memory>
+#include <QString>
 
 namespace calendar {
 namespace data {
 
 class TodoRepository;
 class EventRepository;
+class FileCalendarStorage;
 
 class DataProvider
 {
@@ -18,9 +20,11 @@ public:
     EventRepository &eventRepository();
 
 private:
+    void seedDemoData();
+
+    std::shared_ptr<FileCalendarStorage> m_calendarStorage;
     std::unique_ptr<TodoRepository> m_todoRepository;
     std::unique_ptr<EventRepository> m_eventRepository;
-    void seedDemoData();
 };
 
 } // namespace data
