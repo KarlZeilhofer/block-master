@@ -71,6 +71,7 @@ private:
     void handleTodoSelectionChanged();
     void handlePlacementConfirmed(const QDateTime &start);
     void handleHoveredDateTime(const QDateTime &dt);
+    void handleEventCreationRequest(const QDateTime &start, const QDateTime &end);
     void openInlineEditor();
     void openDetailDialog();
     void togglePreviewPanel();

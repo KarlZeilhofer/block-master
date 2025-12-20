@@ -60,6 +60,7 @@ Hauptaufgaben:
 - **Select-first-Prinzip**: Single-Click markiert ein Event, löst aber keine Editieransicht aus; erst explizite Aktionen (Shortcut, Button, Kontext) starten das Editing.
 - Shift/Strg-Klick erweitert/separiert Mehrfachauswahl; `Esc` hebt die Auswahl auf, ohne Panels anzuzeigen.
 - Direkte Daueranpassung über Drag an oberen/unteren Griffpunkten, Inline-Editor wird dabei nur auf Wunsch (Shortcut `E`) eingeblendet.
+- Freies Erstellen: Ein leerer Slot lässt sich mit gedrückter linker Maustaste „aufziehen“. Der Drag definiert Start- und Endzeit, zeigt währenddessen ein Ghost-Overlay samt Zeitstempel an und öffnet nach dem Loslassen automatisch den Inline-Editor, damit Titel/Details sofort eingegeben werden können.
 - Keyboard-Editing: `Enter` öffnet den Inline-Editor, `Tab` springt zwischen Feldern, `Alt+Enter` speichert und bleibt im Editor.
 
 ### 6.2 Erweitertes Editieren

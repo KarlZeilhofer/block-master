@@ -2,6 +2,7 @@
 
 #include <QAbstractScrollArea>
 #include <QDate>
+#include <QDateTime>
 #include <QVector>
 #include <optional>
 #include <vector>
@@ -38,6 +39,7 @@ signals:
     void eventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
     void externalPlacementConfirmed(const QDateTime &start);
     void eventDroppedToTodo(const data::CalendarEvent &event);
+    void eventCreationRequested(const QDateTime &start, const QDateTime &end);
 
 public:
     void beginPlacementPreview(int durationMinutes, const QString &label, const QDateTime &initialStart);
@@ -82,6 +84,10 @@ private:
     void finalizeInternalEventDrag(const QPointF &scenePos);
     void cancelInternalEventDrag();
     bool cursorOverTodoList(const QPoint &globalPos) const;
+    void startNewEventDrag();
+    void updateNewEventDrag(const QPointF &scenePos);
+    void finalizeNewEventDrag();
+    void cancelNewEventDrag();
 
     QDate m_startDate;
     int m_dayCount = 5;
@@ -119,6 +125,11 @@ private:
     data::CalendarEvent m_internalDragSource;
     int m_internalDragOffsetMinutes = 0;
     int m_internalDragDurationMinutes = 0;
+    bool m_newEventDragPending = false;
+    bool m_newEventDragActive = false;
+    QDateTime m_newEventAnchorTime;
+    QDateTime m_newEventStart;
+    QDateTime m_newEventEnd;
 };
 
 } // namespace ui

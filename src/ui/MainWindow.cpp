@@ -227,6 +227,10 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::dayZoomRequested, this, &MainWindow::zoomCalendarHorizontally);
     connect(m_calendarView, &CalendarView::dayScrollRequested, this, &MainWindow::scrollVisibleDays);
     connect(m_calendarView, &CalendarView::eventDroppedToTodo, this, &MainWindow::handleEventDroppedToTodo);
+    connect(m_calendarView,
+            &CalendarView::eventCreationRequested,
+            this,
+            &MainWindow::handleEventCreationRequest);
 
     m_eventEditor = new EventInlineEditor(panel);
     m_eventEditor->setVisible(false);
@@ -537,13 +541,24 @@ void MainWindow::handleEventSelected(const data::CalendarEvent &event)
 void MainWindow::saveEventEdits(const data::CalendarEvent &event)
 {
     auto updated = event;
-    m_appContext->eventRepository().updateEvent(updated);
+    bool created = false;
+    if (m_appContext->eventRepository().findById(event.id).has_value()) {
+        m_appContext->eventRepository().updateEvent(updated);
+    } else {
+        updated = m_appContext->eventRepository().addEvent(updated);
+        created = true;
+    }
+    if (auto latest = m_appContext->eventRepository().findById(updated.id)) {
+        updated = *latest;
+    }
     m_selectedEvent = updated;
     if (m_eventEditor) {
         m_eventEditor->clearEditor();
     }
     refreshCalendar();
-    statusBar()->showMessage(tr("Termin gespeichert: %1").arg(updated.title), 1500);
+    statusBar()->showMessage(created ? tr("Termin erstellt: %1").arg(updated.title)
+                                     : tr("Termin gespeichert: %1").arg(updated.title),
+                             1500);
     if (m_previewVisible) {
         showPreviewForSelection();
     }
@@ -726,6 +741,36 @@ void MainWindow::handleHoveredDateTime(const QDateTime &dt)
         m_calendarView->updatePlacementPreview(snapToQuarterHour(dt));
     }
     statusBar()->showMessage(tr("Cursor: %1").arg(dt.toString(Qt::ISODate)), 1000);
+}
+
+void MainWindow::handleEventCreationRequest(const QDateTime &start, const QDateTime &end)
+{
+    cancelPendingPlacement();
+    m_selectedEvent.reset();
+    m_selectedTodo.reset();
+    if (m_editEventAction) {
+        m_editEventAction->setEnabled(false);
+    }
+    if (m_todoListView) {
+        m_todoListView->clearSelection();
+    }
+    if (m_previewPanel) {
+        m_previewPanel->clearPreview();
+    }
+    m_previewVisible = false;
+
+    data::CalendarEvent event;
+    event.start = start;
+    event.end = end;
+    if (m_eventEditor) {
+        m_eventEditor->setEvent(event);
+        m_eventEditor->setVisible(true);
+        m_eventEditor->setFocus();
+    }
+    statusBar()->showMessage(tr("Neuen Termin festgelegt: %1 - %2")
+                                 .arg(start.toString(QStringLiteral("hh:mm")),
+                                      end.toString(QStringLiteral("hh:mm"))),
+                             2000);
 }
 
 void MainWindow::openInlineEditor()

@@ -297,6 +297,7 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         m_pressPos = event->pos();
         resetDragCandidate();
+        cancelNewEventDrag();
         for (const auto &ev : m_events) {
             const QRectF rect = eventRect(ev);
             const bool withinX = scenePos.x() >= rect.left() && scenePos.x() <= rect.right();
@@ -304,12 +305,16 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
                 auto topArea = handleArea(ev, true);
                 if (scenePos.y() >= topArea.first && scenePos.y() <= topArea.second) {
                     beginResize(ev, true);
+                    m_newEventDragPending = false;
+                    m_newEventAnchorTime = QDateTime();
                     event->accept();
                     return;
                 }
                 auto bottomArea = handleArea(ev, false);
                 if (scenePos.y() >= bottomArea.first && scenePos.y() <= bottomArea.second) {
                     beginResize(ev, false);
+                    m_newEventDragPending = false;
+                    m_newEventAnchorTime = QDateTime();
                     event->accept();
                     return;
                 }
@@ -329,12 +334,25 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
             viewport()->update();
             emit eventActivated(ev);
             emit eventSelected(ev);
+            m_newEventDragPending = false;
+            m_newEventAnchorTime = QDateTime();
             event->accept();
             return;
         }
         m_selectedEvent = {};
         viewport()->update();
         emit selectionCleared();
+        auto dateTimeOpt = dateTimeAtScene(scenePos);
+        if (dateTimeOpt) {
+            QDateTime anchor = dateTimeOpt.value();
+            int minutes = snapMinutes(anchor.time().hour() * 60 + anchor.time().minute());
+            anchor.setTime(QTime(minutes / 60, minutes % 60));
+            m_newEventAnchorTime = anchor;
+            m_newEventDragPending = true;
+        } else {
+            m_newEventDragPending = false;
+            m_newEventAnchorTime = QDateTime();
+        }
         event->accept();
         return;
     }
@@ -371,6 +389,19 @@ void CalendarView::mouseMoveEvent(QMouseEvent *event)
         event->accept();
         return;
     }
+    if ((event->buttons() & Qt::LeftButton) && m_newEventDragPending) {
+        if (!m_newEventDragActive
+            && (event->pos() - m_pressPos).manhattanLength() >= QApplication::startDragDistance()) {
+            startNewEventDrag();
+        }
+        if (m_newEventDragActive) {
+            updateNewEventDrag(scenePos);
+            event->accept();
+            return;
+        }
+    } else if (m_newEventDragActive && !(event->buttons() & Qt::LeftButton)) {
+        cancelNewEventDrag();
+    }
     emitHoverAt(event->pos());
     QAbstractScrollArea::mouseMoveEvent(event);
 }
@@ -388,6 +419,17 @@ void CalendarView::mouseReleaseEvent(QMouseEvent *event)
         finalizeInternalEventDrag(scenePos);
         event->accept();
         return;
+    }
+    if (m_newEventDragActive && event->button() == Qt::LeftButton) {
+        const QPointF scenePos = QPointF(event->pos())
+            + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+        updateNewEventDrag(scenePos);
+        finalizeNewEventDrag();
+        event->accept();
+        return;
+    }
+    if (m_newEventDragPending && event->button() == Qt::LeftButton) {
+        cancelNewEventDrag();
     }
     resetDragCandidate();
     QAbstractScrollArea::mouseReleaseEvent(event);
@@ -877,9 +919,92 @@ bool CalendarView::cursorOverTodoList(const QPoint &globalPos) const
         if (widget->objectName() == QLatin1String("todoList")) {
             return true;
         }
-        widget = widget->parentWidget();
+    widget = widget->parentWidget();
     }
     return false;
+}
+
+void CalendarView::startNewEventDrag()
+{
+    if (!m_newEventDragPending || !m_newEventAnchorTime.isValid()) {
+        return;
+    }
+    m_newEventDragActive = true;
+    m_dragInteractionActive = true;
+    m_newEventStart = m_newEventAnchorTime;
+    m_newEventEnd = m_newEventAnchorTime.addSecs(SnapIntervalMinutes * 60);
+    const QString label = tr("Neuer Termin\n%1 - %2")
+                              .arg(m_newEventStart.time().toString(QStringLiteral("hh:mm")),
+                                   m_newEventEnd.time().toString(QStringLiteral("hh:mm")));
+    updateDropPreview(m_newEventStart,
+                      qMax(SnapIntervalMinutes,
+                           static_cast<int>(m_newEventStart.secsTo(m_newEventEnd) / 60)),
+                      label);
+}
+
+void CalendarView::updateNewEventDrag(const QPointF &scenePos)
+{
+    if (!m_newEventDragActive) {
+        return;
+    }
+    auto dateTimeOpt = dateTimeAtScene(scenePos);
+    QDateTime current = dateTimeOpt.value_or(m_newEventAnchorTime);
+    if (current.isValid()) {
+        int minutes = snapMinutes(current.time().hour() * 60 + current.time().minute());
+        current.setTime(QTime(minutes / 60, minutes % 60));
+    } else {
+        current = m_newEventAnchorTime;
+    }
+    if (!m_newEventAnchorTime.isValid()) {
+        return;
+    }
+    QDateTime start = m_newEventAnchorTime;
+    QDateTime end = current;
+    if (end < start) {
+        std::swap(start, end);
+    }
+    if (!end.isValid() || end <= start) {
+        end = start.addSecs(SnapIntervalMinutes * 60);
+    }
+    const int durationMinutes = qMax(SnapIntervalMinutes,
+                                     static_cast<int>(start.secsTo(end) / 60));
+    m_newEventStart = start;
+    m_newEventEnd = start.addSecs(durationMinutes * 60);
+    const QString label = tr("Neuer Termin\n%1 - %2")
+                              .arg(m_newEventStart.time().toString(QStringLiteral("hh:mm")),
+                                   m_newEventEnd.time().toString(QStringLiteral("hh:mm")));
+    updateDropPreview(m_newEventStart, durationMinutes, label);
+}
+
+void CalendarView::finalizeNewEventDrag()
+{
+    if (!m_newEventDragActive) {
+        cancelNewEventDrag();
+        return;
+    }
+    clearDropPreview();
+    m_dragInteractionActive = false;
+    m_newEventDragActive = false;
+    m_newEventDragPending = false;
+    if (m_newEventStart.isValid() && m_newEventEnd.isValid() && m_newEventEnd > m_newEventStart) {
+        emit eventCreationRequested(m_newEventStart, m_newEventEnd);
+    }
+    m_newEventAnchorTime = QDateTime();
+    m_newEventStart = QDateTime();
+    m_newEventEnd = QDateTime();
+}
+
+void CalendarView::cancelNewEventDrag()
+{
+    if (m_newEventDragActive) {
+        clearDropPreview();
+        m_dragInteractionActive = false;
+    }
+    m_newEventDragActive = false;
+    m_newEventDragPending = false;
+    m_newEventAnchorTime = QDateTime();
+    m_newEventStart = QDateTime();
+    m_newEventEnd = QDateTime();
 }
 
 void CalendarView::resetDragCandidate()
