@@ -139,6 +139,7 @@ private:
     QAction *m_editEventAction = nullptr;
     QListView *m_activeTodoView = nullptr;
     QShortcut *m_cancelPlacementShortcut = nullptr;
+    QString m_eventSearchFilter;
 };
 
 } // namespace ui

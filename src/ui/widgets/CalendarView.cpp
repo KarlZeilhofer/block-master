@@ -225,12 +225,44 @@ void CalendarView::setVerticalScrollValue(int value)
     }
 }
 
+void CalendarView::setEventSearchFilter(const QString &text)
+{
+    QString normalized = text.trimmed();
+    if (m_eventSearchFilter == normalized) {
+        return;
+    }
+    m_eventSearchFilter = normalized;
+    viewport()->update();
+}
+
 void CalendarView::temporarilyDisableNewEventCreation()
 {
     m_allowNewEventCreation = false;
     QTimer::singleShot(0, this, [this]() {
         m_allowNewEventCreation = true;
     });
+}
+
+bool CalendarView::eventMatchesFilter(const data::CalendarEvent &event) const
+{
+    if (m_eventSearchFilter.isEmpty()) {
+        return true;
+    }
+    const Qt::CaseSensitivity cs = Qt::CaseInsensitive;
+    if (event.title.contains(m_eventSearchFilter, cs)) {
+        return true;
+    }
+    if (event.description.contains(m_eventSearchFilter, cs)) {
+        return true;
+    }
+    if (event.location.contains(m_eventSearchFilter, cs)) {
+        return true;
+    }
+    const QString timeString = QLocale().toString(event.start, QLocale::ShortFormat);
+    if (timeString.contains(m_eventSearchFilter, cs)) {
+        return true;
+    }
+    return false;
 }
 
 bool CalendarView::showMonthBand() const
@@ -426,6 +458,19 @@ void CalendarView::paintEvent(QPaintEvent *event)
         painter.drawLine(QPointF(m_timeAxisWidth, y), QPointF(totalWidth, y));
     }
 
+    const QDate todayLineDate = QDate::currentDate();
+    if (todayLineDate >= m_startDate && todayLineDate < m_startDate.addDays(m_dayCount)) {
+        const int dayIndex = m_startDate.daysTo(todayLineDate);
+        const QTime now = QTime::currentTime();
+        const double minutes = now.hour() * 60.0 + now.minute() + now.second() / 60.0;
+        const double y = bodyOriginY + (minutes / 60.0) * m_hourHeight;
+        if (y >= totalHeaderHeight && y <= bodyOriginY + bodyHeight) {
+            const double xStart = m_timeAxisWidth + dayIndex * m_dayWidth;
+            painter.setPen(QPen(Qt::red, 2));
+            painter.drawLine(QPointF(xStart, y), QPointF(xStart + m_dayWidth, y));
+        }
+    }
+
     painter.setRenderHint(QPainter::Antialiasing, true);
     const QRectF visibleRect(m_timeAxisWidth,
                              totalHeaderHeight - m_hourHeight,
@@ -451,7 +496,13 @@ void CalendarView::paintEvent(QPaintEvent *event)
             continue;
         }
 
+        const bool matchesFilter = eventMatchesFilter(eventData);
         QColor color = palette().highlight().color();
+        QColor textColor = Qt::white;
+        if (!matchesFilter) {
+            color = palette().midlight().color();
+            textColor = palette().mid().color();
+        }
         if (eventData.id == m_selectedEvent) {
             color = color.darker(125);
         }
@@ -473,7 +524,7 @@ void CalendarView::paintEvent(QPaintEvent *event)
         bool infoDrawn = false;
 
         const double handleHeight = 6.0;
-        QColor handleColor = palette().highlight().color().lighter(130);
+        QColor handleColor = color.lighter(130);
         handleColor.setAlpha(160);
 
         QRectF topRect = segments.front().rect;
@@ -499,7 +550,7 @@ void CalendarView::paintEvent(QPaintEvent *event)
             painter.setBrush(color);
             painter.drawPath(path);
 
-            painter.setPen(Qt::white);
+            painter.setPen(textColor);
             QString block;
             if (segment.clipTop) {
                 block = tr("... %1").arg(eventData.title);

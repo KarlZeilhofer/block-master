@@ -33,7 +33,6 @@ Gemeinsames Verhalten:
     Durch ein Mouse-Hover kann einer der überlappenden Events in den vordergrund gebracht werden, der dann temporär 85% der Breite einnimmt - links bzw. rechtsbündig. 
     Ein Drag-Start oder Select-click muss sich immer auf das hervorgehobene Element beziehen. 
 
-Zeige die aktuelle Uhrzeit als horizontale Linie am heutigen Tag in roter Farbe. 
 
 Start/Ende Zeiten (Datum + Uhrzeiten) können in InlineEdit nicht editiert werden!
 Das macht man immer grafisch. Somit fallen diese Elemente auch aus der Tab-Reihenfolge heraus. Somit wird die UI besser bedienbar. Lass die Elemente als read only stehen. 
@@ -48,11 +47,19 @@ Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position veränder
 
 WIP ################################
 
-Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht an der oberen Kante. 
-Außer der Event dauert länger als 16h, dann soll er bei Stunde 8 anhaften. 
-Im Ghost-Objekt soll die Startuhrzeit Fett und optimal groß dargestellt werden, wenn es im Kalender platziert wird. 
+
 
 DONE ###############################
+
+Das Suchfeld soll nun auch auf die Darstellung der Events wirken. Events, die nicht unter die suchergebnisse fallen, werden hellgrau dargestellt. Treffer bleiben in der ursprünglichen Farbdarstellung. 
+
+Zeige die aktuelle Uhrzeit als horizontale Linie am heutigen Tag in roter Farbe. 
+
+Build Nummer im Fenstertitel
+
+Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht an der oberen Kante. 
+Außer der Event dauert länger als 16h, dann soll er bei Stunde 8 anhaften. 
+Im Ghost-Objekt soll die Startuhrzeit Fett und optimal groß dargestellt werden, wenn es im Kalender platziert wird. Zusätzlich noch Wochentag und Monatstag
 
 Grenzen zwei Event direkt aneinander, soll beim ersten keine "Endezeit" dargestellt werden. Dadurch wird die Darstellung sauberer und besser lesbar. 
 Wenn ein Event nur 1h oder kürzer ist, soll auch keine Ende-Zeit dargestellt werden. 

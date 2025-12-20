@@ -31,6 +31,7 @@ public:
     void setHourHeight(double height);
     int verticalScrollValue() const;
     void setVerticalScrollValue(int value);
+    void setEventSearchFilter(const QString &text);
 signals:
     void dayZoomRequested(bool zoomIn);
     void dayScrollRequested(int dayDelta);
@@ -111,6 +112,7 @@ private:
     bool showMonthBand() const;
     double monthBandHeight() const;
     double totalHeaderHeight() const;
+    bool eventMatchesFilter(const data::CalendarEvent &event) const;
 
     QDate m_startDate;
     int m_dayCount = 5;
@@ -155,6 +157,7 @@ private:
     QDateTime m_newEventEnd;
     bool m_allowNewEventCreation = true;
     std::optional<data::TodoStatus> m_currentTodoHoverStatus;
+    QString m_eventSearchFilter;
 };
 
 } // namespace ui

@@ -57,12 +57,13 @@ target_link_libraries(calendar_ui PUBLIC Qt5::Widgets calendar_core calendar_dat
 
 set(BUILD_NUMBER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/build_number.txt")
 set(BUILD_NUMBER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/build_number.hpp")
+set(BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/update_build_number.sh")
 
 add_custom_command(
     OUTPUT ${BUILD_NUMBER_HEADER}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/update_build_number.py ${BUILD_NUMBER_FILE} ${BUILD_NUMBER_HEADER}
-    DEPENDS ${BUILD_NUMBER_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/update_build_number.py
+    COMMAND ${BUILD_NUMBER_SCRIPT} ${BUILD_NUMBER_FILE} ${BUILD_NUMBER_HEADER}
+    DEPENDS ${BUILD_NUMBER_FILE} ${BUILD_NUMBER_SCRIPT}
     COMMENT "Updating build number"
 )
 

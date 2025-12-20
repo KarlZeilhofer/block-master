@@ -390,7 +390,12 @@ QWidget *MainWindow::createTodoPanel()
     m_todoSearchField->setPlaceholderText(tr("Suche…"));
     connect(m_todoSearchField, &QLineEdit::textChanged, this, [this](const QString &text) {
         updateTodoFilterText(text);
+        m_eventSearchFilter = text;
+        if (m_calendarView) {
+            m_calendarView->setEventSearchFilter(text);
+        }
     });
+    m_eventSearchFilter = m_todoSearchField->text();
 
     layout->addLayout(headerLayout);
     layout->addWidget(m_todoSearchField);
@@ -478,6 +483,7 @@ QWidget *MainWindow::createCalendarView()
     layout->setSpacing(0);
 
     m_calendarView = new CalendarView(panel);
+    m_calendarView->setEventSearchFilter(m_eventSearchFilter);
     m_calendarView->setHourHeight(m_savedHourHeight);
     m_calendarView->setVerticalScrollValue(m_savedVerticalScroll);
     connect(m_calendarView, &CalendarView::eventActivated, this, [this](const data::CalendarEvent &event) {
