@@ -28,10 +28,12 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
     m_titleEdit = new QLineEdit(this);
     formLayout->addRow(tr("Titel"), m_titleEdit);
     connect(m_titleEdit, &QLineEdit::returnPressed, this, &EventInlineEditor::handleSave);
+    m_titleEdit->installEventFilter(this);
 
     m_locationEdit = new QLineEdit(this);
     formLayout->addRow(tr("Ort"), m_locationEdit);
     connect(m_locationEdit, &QLineEdit::returnPressed, this, &EventInlineEditor::handleSave);
+    m_locationEdit->installEventFilter(this);
 
     m_startEdit = new QDateTimeEdit(this);
     m_startEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd hh:mm"));
@@ -48,6 +50,7 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
     m_descriptionEdit = new QPlainTextEdit(this);
     m_descriptionEdit->setPlaceholderText(tr("Beschreibung"));
     formLayout->addRow(tr("Beschreibung"), m_descriptionEdit);
+    m_descriptionEdit->installEventFilter(this);
     m_saveLocationShortcut = new QShortcut(QKeySequence(Qt::Key_Return), m_locationEdit);
     m_saveLocationShortcut->setContext(Qt::WidgetShortcut);
     connect(m_saveLocationShortcut, &QShortcut::activated, this, &EventInlineEditor::handleSave);
@@ -168,6 +171,18 @@ void EventInlineEditor::keyPressEvent(QKeyEvent *event)
         return;
     }
     QWidget::keyPressEvent(event);
+}
+
+bool EventInlineEditor::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event && event->type() == QEvent::KeyPress) {
+        auto *key = static_cast<QKeyEvent *>(event);
+        if (key->key() == Qt::Key_Escape && key->modifiers() == Qt::NoModifier) {
+            handleSave();
+            return true;
+        }
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void EventInlineEditor::handleSave()

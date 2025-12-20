@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QShortcut>
+#include <QEvent>
 
 #include "calendar/data/Event.hpp"
 #include "calendar/data/Todo.hpp"
@@ -36,6 +37,7 @@ signals:
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void handleSave();

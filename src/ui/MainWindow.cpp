@@ -291,6 +291,7 @@ QWidget *MainWindow::createCalendarView()
         }
         if (m_eventEditor) {
             m_eventEditor->clearEditor();
+            setInlineEditorActive(false);
         }
     });
 
@@ -379,9 +380,9 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
     deleteShortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(deleteShortcut, &QShortcut::activated, this, &MainWindow::deleteSelection);
 
-    auto *cancelPasteShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
-    cancelPasteShortcut->setContext(Qt::WidgetWithChildrenShortcut);
-    connect(cancelPasteShortcut, &QShortcut::activated, this, &MainWindow::cancelPendingPlacement);
+    m_cancelPlacementShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
+    m_cancelPlacementShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(m_cancelPlacementShortcut, &QShortcut::activated, this, &MainWindow::cancelPendingPlacement);
 }
 
 void MainWindow::saveTodoSplitterState() const
@@ -725,6 +726,7 @@ void MainWindow::saveEventEdits(const data::CalendarEvent &event)
     m_selectedEvent = updated;
     if (m_eventEditor) {
         m_eventEditor->clearEditor();
+        setInlineEditorActive(false);
     }
     if (m_calendarView) {
         m_calendarView->clearGhostPreview();
@@ -747,6 +749,10 @@ void MainWindow::saveTodoEdits(const data::TodoItem &todo)
         return;
     }
     m_selectedTodo = updated;
+    if (m_eventEditor) {
+        m_eventEditor->clearEditor();
+        setInlineEditorActive(false);
+    }
     refreshTodos();
     statusBar()->showMessage(tr("TODO gespeichert: %1").arg(updated.title), 1500);
     if (m_previewVisible) {
@@ -780,6 +786,7 @@ void MainWindow::clearSelection()
     }
     if (m_eventEditor) {
         m_eventEditor->clearEditor();
+        setInlineEditorActive(false);
     }
     if (m_previewPanel) {
         m_previewPanel->clearPreview();
@@ -833,6 +840,7 @@ void MainWindow::handleTodoSelectionChanged(TodoListView *view)
             m_selectedTodo.reset();
             if (hadTodo && m_eventEditor && m_eventEditor->isTodoMode()) {
                 m_eventEditor->clearEditor();
+                setInlineEditorActive(false);
             }
             if (m_previewVisible && !m_selectedEvent.has_value() && m_previewPanel) {
                 m_previewPanel->clearPreview();
@@ -986,6 +994,7 @@ void MainWindow::handleEventCreationRequest(const QDateTime &start, const QDateT
         m_eventEditor->setEvent(event);
         m_eventEditor->setVisible(true);
         m_eventEditor->focusTitle(true);
+        setInlineEditorActive(true);
     }
     statusBar()->showMessage(tr("Neuen Termin festgelegt: %1 - %2")
                                  .arg(start.toString(QStringLiteral("hh:mm")),
@@ -1007,12 +1016,14 @@ void MainWindow::openInlineEditor()
         m_eventEditor->setEvent(*m_selectedEvent);
         m_eventEditor->setVisible(true);
         m_eventEditor->focusTitle(true);
+        setInlineEditorActive(true);
         return;
     }
     if (m_selectedTodo.has_value()) {
         m_eventEditor->setTodo(*m_selectedTodo);
         m_eventEditor->setVisible(true);
         m_eventEditor->focusTitle(true);
+        setInlineEditorActive(true);
     }
 }
 
@@ -1050,6 +1061,7 @@ void MainWindow::togglePreviewPanel()
     cancelPendingPlacement();
     if (m_eventEditor) {
         m_eventEditor->clearEditor();
+        setInlineEditorActive(false);
     }
     m_previewVisible = !m_previewVisible;
     if (m_previewVisible) {
@@ -1172,6 +1184,7 @@ void MainWindow::deleteSelection()
     }
     if (m_eventEditor) {
         m_eventEditor->clearEditor();
+        setInlineEditorActive(false);
     }
     cancelPendingPlacement();
     const bool removed = m_appContext->eventRepository().removeEvent(m_selectedEvent->id);
@@ -1210,6 +1223,13 @@ TodoListView *MainWindow::todoViewForStatus(data::TodoStatus status) const
         return m_todoDoneView;
     }
     return nullptr;
+}
+
+void MainWindow::setInlineEditorActive(bool active)
+{
+    if (m_cancelPlacementShortcut) {
+        m_cancelPlacementShortcut->setEnabled(!active);
+    }
 }
 
 QDate MainWindow::alignToWeekStart(const QDate &date) const

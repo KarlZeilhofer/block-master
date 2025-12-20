@@ -96,6 +96,7 @@ private:
     QDate alignToWeekStart(const QDate &date) const;
     void clearTodoHoverGhosts();
     TodoListView *todoViewForStatus(data::TodoStatus status) const;
+    void setInlineEditorActive(bool active);
 
     QWidget *m_todoPanel = nullptr;
     QWidget *m_calendarPanel = nullptr;
@@ -127,6 +128,7 @@ private:
     std::unique_ptr<ScheduleViewModel> m_scheduleViewModel;
     QAction *m_editEventAction = nullptr;
     QListView *m_activeTodoView = nullptr;
+    QShortcut *m_cancelPlacementShortcut = nullptr;
 };
 
 } // namespace ui

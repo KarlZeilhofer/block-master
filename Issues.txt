@@ -4,7 +4,7 @@ Ein Spezieller Einfüge-Modus soll aus einem Plaintext (z.B. aus einem Textedito
 Ist das Erste Zeichen ein Tabulator, dann ist es eine Zeile in der Beschreibung zum TODO. Beispiel:
 
 ----------------
-Einkaufen gehen
+Einkaufen gehen 2h
     Eier
     Milch
     Wein
@@ -60,6 +60,10 @@ WIP ################################
 
 
 DONE ###############################
+Ist der InlneEditor offen, muss er mit Enter in LineEdit Titel (funktionert schon so), Ort oder Beschreibung gespeichert und geschlossen werden.
+  Mit ESC muss er auch geschlossen und gespeichert werden.
+  Befindet man sich im Textfeld Beschreibung, kann man mit Alt+Enter beenden, oder eben durch ESC. 
+
 Wird ein Event in die Todo-Leiste gezogen, dann sollt dort auch ein Ghost-Element angezeigt werden. 
 
 Wird ein Event in die Todo-Liste gezogen, soll dem TODO die Dauer des Tasks erhalten bleiben.
