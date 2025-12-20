@@ -9,6 +9,7 @@
 #include <QString>
 #include <QPair>
 #include <QElapsedTimer>
+#include <map>
 
 #include "calendar/data/Event.hpp"
 #include "calendar/data/Todo.hpp"
@@ -68,6 +69,7 @@ protected:
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void dragLeaveEvent(QDragLeaveEvent *event) override;
+    void leaveEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
@@ -102,6 +104,7 @@ private:
         QDateTime segmentEnd;
         bool clipTop = false;
         bool clipBottom = false;
+        int dayIndex = -1;
     };
     std::vector<EventSegment> segmentsForEvent(const data::CalendarEvent &event) const;
     void startNewEventDrag();
@@ -115,6 +118,23 @@ private:
     bool eventMatchesFilter(const data::CalendarEvent &event) const;
     QString eventTooltipText(const data::CalendarEvent &event) const;
     QString formatDurationMinutes(int totalMinutes) const;
+    void invalidateLayout();
+    void ensureLayoutCache() const;
+    struct LayoutInfo {
+        double offsetFraction = 0.0;
+        double widthFraction = 1.0;
+        enum class Anchor
+        {
+            Left,
+            Right,
+            Center
+        };
+        Anchor anchor = Anchor::Left;
+        int zPriority = 0;
+    };
+    LayoutInfo layoutInfoFor(const QUuid &eventId, int dayIndex) const;
+    QRectF adjustedRectForSegment(const data::CalendarEvent &event, const EventSegment &segment) const;
+    bool eventHasOverlay(const data::CalendarEvent &event) const;
 
     QDate m_startDate;
     int m_dayCount = 5;
@@ -160,6 +180,9 @@ private:
     bool m_allowNewEventCreation = true;
     std::optional<data::TodoStatus> m_currentTodoHoverStatus;
     QString m_eventSearchFilter;
+    QUuid m_hoveredEventId;
+    mutable bool m_layoutDirty = true;
+    mutable std::map<std::pair<QUuid, int>, LayoutInfo> m_layoutCache;
 };
 
 } // namespace ui
