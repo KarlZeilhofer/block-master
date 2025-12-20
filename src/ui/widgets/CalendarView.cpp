@@ -18,7 +18,6 @@
 #include <QIODevice>
 #include <QWheelEvent>
 #include <QCoreApplication>
-#include <QDebug>
 #include <algorithm>
 #include <map>
 
@@ -265,7 +264,6 @@ void CalendarView::resizeEvent(QResizeEvent *event)
 
 void CalendarView::wheelEvent(QWheelEvent *event)
 {
-    qDebug() << "[CalendarView] wheelEvent local" << event->angleDelta() << "modifiers" << event->modifiers();
     if (handleWheelInteraction(event)) {
         return;
     }
@@ -397,7 +395,6 @@ void CalendarView::mouseReleaseEvent(QMouseEvent *event)
 void CalendarView::dragEnterEvent(QDragEnterEvent *event)
 {
     m_dragInteractionActive = true;
-    qDebug() << "[CalendarView] dragEnter -> activate drag interaction";
     m_autoScrollTimer.invalidate();
     cancelPlacementPreview();
     const auto *mime = event->mimeData();
@@ -410,7 +407,6 @@ void CalendarView::dragEnterEvent(QDragEnterEvent *event)
 
 void CalendarView::dragMoveEvent(QDragMoveEvent *event)
 {
-    qDebug() << "[CalendarView] dragMove at" << event->pos();
     maybeAutoScrollHorizontally(event->pos());
     const auto *mime = event->mimeData();
     const QPointF scenePos = QPointF(event->pos())
@@ -474,7 +470,6 @@ void CalendarView::dragMoveEvent(QDragMoveEvent *event)
 void CalendarView::dropEvent(QDropEvent *event)
 {
     m_dragInteractionActive = false;
-    qDebug() << "[CalendarView] dropEvent -> deactivate drag interaction";
     m_autoScrollTimer.invalidate();
     const auto *mime = event->mimeData();
     const QPointF scenePos = QPointF(event->pos())
@@ -535,7 +530,6 @@ void CalendarView::dragLeaveEvent(QDragLeaveEvent *event)
 {
     m_autoScrollTimer.invalidate();
     m_dragInteractionActive = false;
-    qDebug() << "[CalendarView] dragLeave -> deactivate drag interaction";
     Q_UNUSED(event);
     clearDropPreview();
 }
@@ -549,8 +543,6 @@ bool CalendarView::eventFilter(QObject *watched, QEvent *event)
     switch (event->type()) {
     case QEvent::Wheel: {
         auto *wheel = static_cast<QWheelEvent *>(event);
-        qDebug() << "[CalendarView] eventFilter wheel global" << wheel->angleDelta()
-                 << "modifiers" << wheel->modifiers();
         if (handleWheelInteraction(wheel)) {
             return true;
         }
@@ -566,8 +558,6 @@ bool CalendarView::eventFilter(QObject *watched, QEvent *event)
         if (!target) {
             target = this;
         }
-        qDebug() << "[CalendarView] eventFilter key" << (event->type() == QEvent::KeyPress ? "press" : "release")
-                 << key->key() << "modifiers" << key->modifiers();
         QKeyEvent clone(event->type(),
                         key->key(),
                         key->modifiers(),
@@ -811,7 +801,6 @@ void CalendarView::beginInternalEventDrag(const data::CalendarEvent &event, int 
     m_internalDragOffsetMinutes = pointerOffsetMinutes;
     m_internalDragDurationMinutes = qMax(15, static_cast<int>(event.start.secsTo(event.end) / 60));
     m_dragInteractionActive = true;
-    qDebug() << "[CalendarView] beginInternalEventDrag" << event.title;
 }
 
 void CalendarView::updateInternalEventDrag(const QPointF &scenePos)
@@ -865,7 +854,6 @@ void CalendarView::cancelInternalEventDrag()
     m_internalDragDurationMinutes = 0;
     m_dragInteractionActive = false;
     clearDropPreview();
-    qDebug() << "[CalendarView] cancelInternalEventDrag";
     resetDragCandidate();
 }
 
@@ -982,8 +970,6 @@ void CalendarView::maybeAutoScrollHorizontally(const QPoint &pos)
 
 bool CalendarView::handleWheelInteraction(QWheelEvent *event)
 {
-    qDebug() << "[CalendarView] handleWheelInteraction delta" << event->angleDelta()
-             << "modifiers" << event->modifiers();
     if (event->modifiers().testFlag(Qt::ControlModifier)) {
         const int delta = event->angleDelta().y();
         if (delta != 0) {
@@ -1000,7 +986,6 @@ bool CalendarView::handleWheelInteraction(QWheelEvent *event)
     const QPoint angle = event->angleDelta();
     bool handled = false;
     if (angle.x() != 0) {
-        qDebug() << "[CalendarView] horizontal wheel step" << angle.x();
         m_horizontalScrollRemainder += static_cast<double>(angle.x()) / 120.0;
         while (m_horizontalScrollRemainder >= 1.0) {
             emit dayScrollRequested(-1);
@@ -1014,7 +999,6 @@ bool CalendarView::handleWheelInteraction(QWheelEvent *event)
         }
     }
     if (angle.y() != 0) {
-        qDebug() << "[CalendarView] vertical wheel step" << angle.y();
         const double steps = angle.y() / 120.0;
         const double delta = steps * (m_hourHeight * 0.25); // 15 Minuten
         auto *vbar = verticalScrollBar();
