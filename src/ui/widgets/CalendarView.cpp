@@ -800,6 +800,8 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
                 auto topArea = handleArea(ev, true);
                 if (scenePos.y() >= topArea.first && scenePos.y() <= topArea.second) {
                     beginResize(ev, true);
+                    m_pendingResizeEvent = ev.id;
+                    m_resizeAdjustStart = true;
                     m_newEventDragPending = false;
                     m_newEventAnchorTime = QDateTime();
                     event->accept();
@@ -811,6 +813,8 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
                 auto bottomArea = handleArea(ev, false);
                 if (scenePos.y() >= bottomArea.first && scenePos.y() <= bottomArea.second) {
                     beginResize(ev, false);
+                    m_pendingResizeEvent = ev.id;
+                    m_resizeAdjustStart = false;
                     m_newEventDragPending = false;
                     m_newEventAnchorTime = QDateTime();
                     event->accept();
@@ -894,6 +898,20 @@ void CalendarView::mouseMoveEvent(QMouseEvent *event)
             }
             resetDragCandidate();
         }
+    }
+    if ((event->buttons() & Qt::LeftButton) && !m_pendingResizeEvent.isNull()) {
+        auto it = std::find_if(m_events.begin(), m_events.end(), [this](const data::CalendarEvent &ev) {
+            return ev.id == m_pendingResizeEvent;
+        });
+        if (it != m_events.end()) {
+            beginResize(*it, m_resizeAdjustStart);
+            const QPointF scene = QPointF(event->pos())
+                + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+            updateResize(scene);
+        }
+        m_pendingResizeEvent = QUuid();
+        event->accept();
+        return;
     }
     if (m_internalDragActive && (event->buttons() & Qt::LeftButton)) {
         updateInternalEventDrag(scenePos);
@@ -1258,6 +1276,7 @@ void CalendarView::ensureLayoutCache() const
     }
 
     constexpr double containWidth = 0.58;
+    constexpr double containerWidth = 0.88;
     constexpr double overlapWidth = 0.72;
     constexpr double epsilon = 0.01;
 
@@ -1308,6 +1327,11 @@ void CalendarView::ensureLayoutCache() const
                     && second.endMinutes >= first.endMinutes - epsilon;
 
                 if (firstContainsSecond && !secondContainsFirst) {
+                    if (!first.fromSplit) {
+                        first.width = qMin(first.width, containerWidth);
+                        first.offset = 0.0;
+                        first.anchor = LayoutInfo::Anchor::Left;
+                    }
                     second.width = qMin(second.width, containWidth);
                     second.offset = 1.0 - second.width;
                     second.anchor = LayoutInfo::Anchor::Right;
@@ -1315,6 +1339,11 @@ void CalendarView::ensureLayoutCache() const
                     continue;
                 }
                 if (secondContainsFirst && !firstContainsSecond) {
+                    if (!second.fromSplit) {
+                        second.width = qMin(second.width, containerWidth);
+                        second.offset = 0.0;
+                        second.anchor = LayoutInfo::Anchor::Left;
+                    }
                     first.width = qMin(first.width, containWidth);
                     first.offset = 1.0 - first.width;
                     first.anchor = LayoutInfo::Anchor::Right;
@@ -1602,6 +1631,7 @@ void CalendarView::beginResize(const data::CalendarEvent &event, bool adjustStar
     m_dragEvent = event;
     m_dragMode = adjustStart ? DragMode::ResizeStart : DragMode::ResizeEnd;
     m_selectedEvent = event.id;
+    m_pendingResizeEvent = QUuid();
 }
 
 void CalendarView::updateResize(const QPointF &scenePos)

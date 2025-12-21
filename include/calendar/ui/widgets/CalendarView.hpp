@@ -146,6 +146,8 @@ private:
     double m_timeAxisWidth = 70.0;
     std::vector<data::CalendarEvent> m_events;
     QUuid m_selectedEvent;
+    QUuid m_pendingResizeEvent;
+    bool m_resizeAdjustStart = false;
     enum class DragMode
     {
         None,
