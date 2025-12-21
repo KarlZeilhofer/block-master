@@ -163,6 +163,14 @@ void EventInlineEditor::clearEditor()
     setVisible(false);
 }
 
+void EventInlineEditor::commitChanges()
+{
+    if (!isVisible()) {
+        return;
+    }
+    handleSave();
+}
+
 void EventInlineEditor::keyPressEvent(QKeyEvent *event)
 {
     if (event && event->key() == Qt::Key_Escape && event->modifiers() == Qt::NoModifier) {

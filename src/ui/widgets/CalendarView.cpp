@@ -548,8 +548,12 @@ void CalendarView::paintEvent(QPaintEvent *event)
                 continue;
             }
             QPainterPath path = segmentPath(rect, segment.clipTop, segment.clipBottom);
-            painter.setPen(QPen(color.darker(140), 1.2));
+            QPainterPath fillPath = path;
+            painter.setPen(Qt::NoPen);
             painter.setBrush(color);
+            painter.drawPath(fillPath);
+            painter.setPen(QPen(color.darker(140), 1.2));
+            painter.setBrush(Qt::NoBrush);
             painter.drawPath(path);
 
             painter.setPen(textColor);
@@ -962,6 +966,22 @@ void CalendarView::mouseReleaseEvent(QMouseEvent *event)
     }
     resetDragCandidate();
     QAbstractScrollArea::mouseReleaseEvent(event);
+}
+
+void CalendarView::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    if (event->button() != Qt::LeftButton) {
+        QAbstractScrollArea::mouseDoubleClickEvent(event);
+        return;
+    }
+    const QPointF scenePos = QPointF(event->pos())
+        + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+    if (const auto *eventData = eventAt(scenePos)) {
+        emit inlineEditRequested(*eventData);
+        event->accept();
+        return;
+    }
+    QAbstractScrollArea::mouseDoubleClickEvent(event);
 }
 
 void CalendarView::dragEnterEvent(QDragEnterEvent *event)

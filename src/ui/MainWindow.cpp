@@ -442,6 +442,7 @@ QWidget *MainWindow::createTodoPanel()
                     });
         }
         connect(view, &TodoListView::activated, this, &MainWindow::handleTodoActivated);
+        connect(view, &TodoListView::doubleClicked, this, &MainWindow::handleTodoDoubleClicked);
         connect(view, &TodoListView::todosDropped, this, &MainWindow::handleTodoStatusDrop);
         view->setContextMenuPolicy(Qt::ActionsContextMenu);
         if (completed) {
@@ -497,7 +498,8 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::hoveredDateTime, this, &MainWindow::handleHoveredDateTime);
     connect(m_calendarView, &CalendarView::eventSelected, this, &MainWindow::handleEventSelected);
     connect(m_calendarView, &CalendarView::eventResizeRequested, this, &MainWindow::applyEventResize);
-    connect(m_calendarView, &CalendarView::selectionCleared, this, &MainWindow::clearSelection);
+    connect(m_calendarView, &CalendarView::selectionCleared, this, &MainWindow::handleCalendarSelectionCleared);
+    connect(m_calendarView, &CalendarView::inlineEditRequested, this, &MainWindow::handleInlineEditRequest);
     connect(m_calendarView, &CalendarView::todoDropped, this, &MainWindow::handleTodoDropped);
     connect(m_calendarView, &CalendarView::eventDropRequested, this, &MainWindow::handleEventDropRequested);
     connect(m_calendarView, &CalendarView::externalPlacementConfirmed, this, &MainWindow::handlePlacementConfirmed);
@@ -858,6 +860,11 @@ void MainWindow::addQuickTodo()
 
     auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dialog);
     layout->addWidget(buttonBox);
+    auto *acceptShortcut = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_Return), &dialog);
+    acceptShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(acceptShortcut, &QShortcut::activated, &dialog, [&dialog]() {
+        QMetaObject::invokeMethod(&dialog, "accept", Qt::QueuedConnection);
+    });
     connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
@@ -922,6 +929,30 @@ void MainWindow::handleTodoActivated(const QModelIndex &index)
         return;
     }
     statusBar()->showMessage(tr("TODO \"%1\" (Priorität %2)").arg(todo->title).arg(todo->priority), 2000);
+}
+
+void MainWindow::handleTodoDoubleClicked(const QModelIndex &index)
+{
+    auto *view = qobject_cast<QListView *>(sender());
+    auto *proxy = proxyForView(view);
+    if (!proxy || !m_todoViewModel) {
+        return;
+    }
+    const auto sourceIndex = proxy->mapToSource(index);
+    const auto *todo = m_todoViewModel->model()->todoAt(sourceIndex);
+    if (!todo || !m_eventEditor) {
+        return;
+    }
+    m_selectedTodo = *todo;
+    m_selectedEvent.reset();
+    clearOtherTodoSelections(view);
+    if (auto *selection = view->selectionModel()) {
+        selection->select(index, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    }
+    m_eventEditor->setTodo(*todo);
+    m_eventEditor->setVisible(true);
+    m_eventEditor->focusTitle(true);
+    setInlineEditorActive(true);
 }
 
 void MainWindow::refreshCalendar()
@@ -1310,6 +1341,26 @@ void MainWindow::handleEventCreationRequest(const QDateTime &start, const QDateT
                                  .arg(start.toString(QStringLiteral("hh:mm")),
                                       end.toString(QStringLiteral("hh:mm"))),
                              2000);
+}
+
+void MainWindow::handleCalendarSelectionCleared()
+{
+    if (m_eventEditor && m_eventEditor->isVisible()) {
+        m_eventEditor->commitChanges();
+    }
+    clearSelection();
+}
+
+void MainWindow::handleInlineEditRequest(const data::CalendarEvent &event)
+{
+    m_selectedEvent = event;
+    m_selectedTodo.reset();
+    clearAllTodoSelections();
+    if (m_eventEditor) {
+        m_eventEditor->setEvent(event);
+        m_eventEditor->focusTitle(true);
+        setInlineEditorActive(true);
+    }
 }
 
 void MainWindow::openInlineEditor()

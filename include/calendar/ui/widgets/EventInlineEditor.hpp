@@ -29,6 +29,7 @@ public:
     void focusTitle(bool selectAll = false);
     void clearEditor();
     bool isTodoMode() const { return m_isTodo; }
+    void commitChanges();
 
 signals:
     void saveRequested(const data::CalendarEvent &event);

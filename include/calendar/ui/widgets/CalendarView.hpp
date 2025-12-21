@@ -38,6 +38,7 @@ signals:
     void dayScrollRequested(int dayDelta);
 
     void eventActivated(const data::CalendarEvent &event);
+    void inlineEditRequested(const data::CalendarEvent &event);
     void hoveredDateTime(const QDateTime &dateTime);
     void eventSelected(const data::CalendarEvent &event);
     void eventResizeRequested(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd);
@@ -65,6 +66,7 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;

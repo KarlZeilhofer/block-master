@@ -5,12 +5,8 @@ Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Even
 
 Entfernen von TODOs per Delete-Taste
 
-Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht an der oberen Kante. 
-Außer der Event dauert länger als 16h, dann soll er bei Stunde 8 anhaften. 
-
 
 Cursor-Position braucht nicht in der Statusleiste angezeigt werden. Völlig unnötig. Zeige lieber Shortcuts an. 
-
 
 
 Die Texte in der Titelzeile sind nicht immer lesbar, je nachdem, wie breit die Spalten sind. 
@@ -20,18 +16,6 @@ Dezember 2025 -> Dez 25 > Dz25
 Die Monate in der kürzesten Schreibweise: Jr Fb Mz Ap Ma Jn Jl Ag Sp Ok Nv Dz
 Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datum. 
 
-
-Überlappende Events: 
-hier gibt es verschiedene Szenarien: 
-* ein kurzer Event innerhalb eines langen Events: 
-    der kurze wird rechtsbündig dargestellt und liegt in z-Richtung oberhalb des langen Events
-* 2 lange Events überlappen sich
-    der zeitlich erste Event bleibt linksbündig, der zweite wird rechtsbündig dargestellt. 
-* 2 gleich große Events zur gleichen Zeit
-    werden direkt nebeneinander dargestellt
-Gemeinsames Verhalten: 
-    Durch ein Mouse-Hover kann einer der überlappenden Events in den vordergrund gebracht werden, der dann temporär 85% der Breite einnimmt - links bzw. rechtsbündig. 
-    Ein Drag-Start oder Select-click muss sich immer auf das hervorgehobene Element beziehen. 
 
 
 Start/Ende Zeiten (Datum + Uhrzeiten) können in InlineEdit nicht editiert werden!
@@ -47,9 +31,33 @@ Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position veränder
 
 WIP ################################
 
-Erstelle für jeden Event einen Tooltip, der alles im Plaintext anzeigt, was es zu wissen gibt: Titel, Beschreibung, Ort, Dauer
 
 DONE ###############################
+
+Doppelklick auf Events oder TODOs öffnet den InlineEditor
+
+Alt+Enter bestätigt den Dialog zum Erstellen neuer TODOs
+--> Suchleiste mit Strg+F Texteingabe, Strg+N Dialog öffnen, Alt+Enter Dialog bestätigen. 
+
+Überlappende Events: 
+hier gibt es verschiedene Szenarien: 
+* ein kurzer Event innerhalb eines langen Events: 
+    der kurze wird rechtsbündig dargestellt und liegt in z-Richtung oberhalb des langen Events
+* 2 lange Events überlappen sich
+    der zeitlich erste Event bleibt linksbündig, der zweite wird rechtsbündig dargestellt. 
+* 2 gleich große Events zur gleichen Zeit
+    werden direkt nebeneinander dargestellt
+Gemeinsames Verhalten: 
+    Durch ein Mouse-Hover kann einer der überlappenden Events in den vordergrund gebracht werden, der dann temporär 85% der Breite einnimmt - links bzw. rechtsbündig. 
+    Ein Drag-Start oder Select-click muss sich immer auf das hervorgehobene Element beziehen. 
+
+
+Erstelle für jeden Event einen Tooltip, der alles im Plaintext anzeigt, was es zu wissen gibt: Titel, Beschreibung, Ort, Dauer
+
+
+Beim Einfügen mit Strg+V oder Strg+D soll das Objekt mittig anhaften, und nicht an der oberen Kante. 
+Außer der Event dauert länger als 16h, dann soll er bei Stunde 8 anhaften. 
+
 
 Wenn der Cursor in der Suchleiste steht, und dann Strg+N gedrückt wird, dann soll der Text in der Suchleiste für das neue Issue übernommen werden. Der Text in der Suchleist verbleibt dort. Somit ist nur das neue Todo sichtbar, und es kann gleich ausgewählt und in den Kalender gezogen werden. 
 Das Erstellungsfeld für TODOs soll als Plain Textedit ausgeführt werden, und sich so verhalten wie es für den Copy/Paste verwendet wird. D.h. man kann direkt Dauer und Beschreibung und Ort mit integrieren, ohne explizite Eingabefelder verwenden zu müssen. 

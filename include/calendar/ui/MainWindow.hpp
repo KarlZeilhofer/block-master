@@ -64,6 +64,7 @@ private:
     void addQuickTodo();
     void deleteSelectedTodos();
     void handleTodoActivated(const QModelIndex &index);
+    void handleTodoDoubleClicked(const QModelIndex &index);
     void refreshCalendar();
     void updateCalendarRange();
     void zoomCalendarHorizontally(bool in);
@@ -83,6 +84,8 @@ private:
     void handlePlacementConfirmed(const QDateTime &start);
     void handleHoveredDateTime(const QDateTime &dt);
     void handleEventCreationRequest(const QDateTime &start, const QDateTime &end);
+    void handleCalendarSelectionCleared();
+    void handleInlineEditRequest(const data::CalendarEvent &event);
     void openInlineEditor();
     void openDetailDialog();
     void togglePreviewPanel();
