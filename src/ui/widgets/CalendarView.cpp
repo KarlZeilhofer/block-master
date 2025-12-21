@@ -615,10 +615,11 @@ void CalendarView::paintEvent(QPaintEvent *event)
 
     std::vector<const data::CalendarEvent *> baseEvents;
     std::vector<const data::CalendarEvent *> overlayEvents;
-    const data::CalendarEvent *hoveredEvent = nullptr;
+    const data::CalendarEvent *frontEvent = nullptr;
+    const QUuid frontId = !m_selectedEvent.isNull() ? m_selectedEvent : m_hoveredEventId;
     for (const auto &event : m_events) {
-        if (event.id == m_hoveredEventId) {
-            hoveredEvent = &event;
+        if (!frontId.isNull() && event.id == frontId) {
+            frontEvent = &event;
             continue;
         }
         if (eventHasOverlay(event)) {
@@ -644,8 +645,8 @@ void CalendarView::paintEvent(QPaintEvent *event)
     for (const auto *event : overlayEvents) {
         paintSingleEvent(*event);
     }
-    if (hoveredEvent) {
-        paintSingleEvent(*hoveredEvent);
+    if (frontEvent) {
+        paintSingleEvent(*frontEvent);
     }
 
     if (m_showDropPreview) {
@@ -787,7 +788,9 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
         m_pressPos = event->pos();
         resetDragCandidate();
         cancelNewEventDrag();
-        for (const auto &ev : m_events) {
+        const auto orderedEvents = eventsInHitOrder();
+        for (const auto *evPtr : orderedEvents) {
+            const auto &ev = *evPtr;
             const auto segments = segmentsForEvent(ev);
             if (segments.empty()) {
                 continue;
@@ -1377,7 +1380,8 @@ QRectF CalendarView::adjustedRectForSegment(const data::CalendarEvent &event, co
     double width = availableWidth * info.widthFraction;
     width = qBound(0.0, width, availableWidth);
     double x = rect.left() + info.offsetFraction * availableWidth;
-    if (m_hoveredEventId == event.id) {
+    const QUuid frontId = !m_hoveredEventId.isNull() ? m_hoveredEventId : m_selectedEvent;
+    if (!frontId.isNull() && frontId == event.id && eventHasOverlap(event)) {
         double hoverWidth = availableWidth * 0.85;
         hoverWidth = qBound(0.0, hoverWidth, availableWidth);
         switch (info.anchor) {
@@ -1398,6 +1402,19 @@ QRectF CalendarView::adjustedRectForSegment(const data::CalendarEvent &event, co
     return rect;
 }
 
+bool CalendarView::eventHasOverlap(const data::CalendarEvent &event) const
+{
+    ensureLayoutCache();
+    for (const auto &[key, info] : m_layoutCache) {
+        if (key.first == event.id) {
+            if (!qFuzzyCompare(1.0 + info.widthFraction, 1.0 + 1.0) || info.offsetFraction > 0.0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool CalendarView::eventHasOverlay(const data::CalendarEvent &event) const
 {
     ensureLayoutCache();
@@ -1407,6 +1424,43 @@ bool CalendarView::eventHasOverlay(const data::CalendarEvent &event) const
         }
     }
     return false;
+}
+
+std::vector<const data::CalendarEvent *> CalendarView::eventsInHitOrder() const
+{
+    std::vector<const data::CalendarEvent *> overlays;
+    std::vector<const data::CalendarEvent *> base;
+    overlays.reserve(m_events.size());
+    base.reserve(m_events.size());
+    const QUuid frontId = !m_hoveredEventId.isNull() ? m_hoveredEventId : m_selectedEvent;
+    const data::CalendarEvent *frontEvent = nullptr;
+    for (const auto &event : m_events) {
+        if (!frontId.isNull() && event.id == frontId) {
+            frontEvent = &event;
+            continue;
+        }
+        if (eventHasOverlay(event)) {
+            overlays.push_back(&event);
+        } else {
+            base.push_back(&event);
+        }
+    }
+    auto sortByTime = [](const data::CalendarEvent *lhs, const data::CalendarEvent *rhs) {
+        if (lhs->start == rhs->start) {
+            return lhs->end < rhs->end;
+        }
+        return lhs->start < rhs->start;
+    };
+    std::sort(overlays.begin(), overlays.end(), sortByTime);
+    std::sort(base.begin(), base.end(), sortByTime);
+    std::vector<const data::CalendarEvent *> ordered;
+    ordered.reserve(overlays.size() + base.size() + 1);
+    if (frontEvent) {
+        ordered.push_back(frontEvent);
+    }
+    ordered.insert(ordered.end(), overlays.begin(), overlays.end());
+    ordered.insert(ordered.end(), base.begin(), base.end());
+    return ordered;
 }
 
 void CalendarView::updateScrollBars()
@@ -1426,15 +1480,16 @@ void CalendarView::selectEventAt(const QPoint &pos)
 {
     ensureLayoutCache();
     const QPointF scenePos = QPointF(pos) + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
-    for (const auto &eventData : m_events) {
-        const auto segments = segmentsForEvent(eventData);
+    const auto orderedEvents = eventsInHitOrder();
+    for (const auto *eventData : orderedEvents) {
+        const auto segments = segmentsForEvent(*eventData);
         for (const auto &segment : segments) {
-            QRectF adjusted = adjustedRectForSegment(eventData, segment);
+            QRectF adjusted = adjustedRectForSegment(*eventData, segment);
             if (adjusted.contains(scenePos)) {
-                m_selectedEvent = eventData.id;
+                m_selectedEvent = eventData->id;
                 viewport()->update();
-                emit eventActivated(eventData);
-                emit eventSelected(eventData);
+                emit eventActivated(*eventData);
+                emit eventSelected(*eventData);
                 return;
             }
         }
@@ -1466,24 +1521,29 @@ void CalendarView::emitHoverAt(const QPoint &pos)
 
     QUuid newTop;
     QUuid newBottom;
-    for (const auto &eventData : m_events) {
-        const auto segments = segmentsForEvent(eventData);
+    const bool selectionActive = !m_selectedEvent.isNull();
+    const auto orderedEvents = eventsInHitOrder();
+    for (const auto *eventData : orderedEvents) {
+        const auto segments = segmentsForEvent(*eventData);
         if (segments.empty()) {
             continue;
         }
-        const QRectF topRect = adjustedRectForSegment(eventData, segments.front());
+        if (selectionActive && eventData->id != m_selectedEvent) {
+            continue;
+        }
+        const QRectF topRect = adjustedRectForSegment(*eventData, segments.front());
         if (scenePos.x() >= topRect.left() && scenePos.x() <= topRect.right()) {
-            auto topArea = handleArea(eventData, true);
+            auto topArea = handleArea(*eventData, true);
             if (scenePos.y() >= topArea.first && scenePos.y() <= topArea.second) {
-                newTop = eventData.id;
+                newTop = eventData->id;
             }
         }
 
-        const QRectF bottomRect = adjustedRectForSegment(eventData, segments.back());
+        const QRectF bottomRect = adjustedRectForSegment(*eventData, segments.back());
         if (scenePos.x() >= bottomRect.left() && scenePos.x() <= bottomRect.right()) {
-            auto bottomArea = handleArea(eventData, false);
+            auto bottomArea = handleArea(*eventData, false);
             if (scenePos.y() >= bottomArea.first && scenePos.y() <= bottomArea.second) {
-                newBottom = eventData.id;
+                newBottom = eventData->id;
             }
         }
 
@@ -1611,12 +1671,13 @@ std::optional<QDateTime> CalendarView::dateTimeAtScene(const QPointF &scenePos) 
 const data::CalendarEvent *CalendarView::eventAt(const QPointF &scenePos) const
 {
     const_cast<CalendarView *>(this)->ensureLayoutCache();
-    for (const auto &eventData : m_events) {
-        const auto segments = segmentsForEvent(eventData);
+    const auto orderedEvents = eventsInHitOrder();
+    for (const auto *eventData : orderedEvents) {
+        const auto segments = segmentsForEvent(*eventData);
         for (const auto &segment : segments) {
-            QRectF adjusted = const_cast<CalendarView *>(this)->adjustedRectForSegment(eventData, segment);
+            QRectF adjusted = const_cast<CalendarView *>(this)->adjustedRectForSegment(*eventData, segment);
             if (adjusted.contains(scenePos)) {
-                return &eventData;
+                return eventData;
             }
         }
     }

@@ -134,7 +134,9 @@ private:
     };
     LayoutInfo layoutInfoFor(const QUuid &eventId, int dayIndex) const;
     QRectF adjustedRectForSegment(const data::CalendarEvent &event, const EventSegment &segment) const;
+    bool eventHasOverlap(const data::CalendarEvent &event) const;
     bool eventHasOverlay(const data::CalendarEvent &event) const;
+    std::vector<const data::CalendarEvent *> eventsInHitOrder() const;
 
     QDate m_startDate;
     int m_dayCount = 5;
