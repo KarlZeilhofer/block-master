@@ -286,7 +286,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_dayOffset = 0.0;
     m_dayOffset = 0.0;
     restoreCalendarState();
+    loadKeywordDefinitions();
     setupUi();
+    applyKeywordColorsToUi();
     refreshTodos();
     refreshCalendar();
 }
@@ -1462,7 +1464,16 @@ void MainWindow::openSettingsDialog()
     if (!m_settingsDialog) {
         m_settingsDialog = std::make_unique<SettingsDialog>(this);
     }
-    m_settingsDialog->exec();
+    m_settingsDialog->setKeywordText(m_keywordDefinitionText);
+    if (m_settingsDialog->exec() == QDialog::Accepted) {
+        const QString newText = m_settingsDialog->keywordText();
+        if (newText != m_keywordDefinitionText) {
+            m_keywordDefinitionText = newText;
+            saveKeywordDefinitions(newText);
+            m_keywordColors = parseKeywordDefinitions(newText);
+            applyKeywordColorsToUi();
+        }
+    }
 }
 
 void MainWindow::togglePreviewPanel()
@@ -1728,6 +1739,68 @@ void MainWindow::performRedo()
     refreshTodos();
     refreshCalendar();
     statusBar()->showMessage(tr("Aktion wiederholt"), 2000);
+}
+
+void MainWindow::loadKeywordDefinitions()
+{
+    QSettings settings;
+    const bool hasValue = settings.contains(QStringLiteral("keywords/definitions"));
+    QString stored = settings.value(QStringLiteral("keywords/definitions")).toString();
+    if (!hasValue) {
+        stored = QStringLiteral("Urlaub #cc3291\nDeadline #d10003");
+    }
+    m_keywordDefinitionText = stored;
+    m_keywordColors = parseKeywordDefinitions(stored);
+}
+
+void MainWindow::saveKeywordDefinitions(const QString &text) const
+{
+    QSettings settings;
+    settings.setValue(QStringLiteral("keywords/definitions"), text);
+}
+
+QHash<QString, QColor> MainWindow::parseKeywordDefinitions(const QString &text) const
+{
+    QHash<QString, QColor> colors;
+    const QStringList lines = text.split(QRegularExpression(QStringLiteral("[\\r\\n]+")), Qt::SkipEmptyParts);
+    QRegularExpression colorRegex(QStringLiteral("#([0-9a-fA-F]{6})"));
+    for (const QString &rawLine : lines) {
+        QString line = rawLine.trimmed();
+        if (line.isEmpty()) {
+            continue;
+        }
+        QRegularExpressionMatch match = colorRegex.match(line);
+        if (!match.hasMatch()) {
+            continue;
+        }
+        QString colorCode = QStringLiteral("#%1").arg(match.captured(1));
+        int colorStart = match.capturedStart();
+        QString name = line.left(colorStart).trimmed();
+        if (name.startsWith(QLatin1Char('#'))) {
+            name.remove(0, 1);
+        }
+        if (name.isEmpty()) {
+            continue;
+        }
+        QColor color(colorCode);
+        if (!color.isValid()) {
+            continue;
+        }
+        colors.insert(name.toLower(), color);
+    }
+    return colors;
+}
+
+void MainWindow::applyKeywordColorsToUi()
+{
+    if (m_todoViewModel) {
+        if (auto *model = m_todoViewModel->model()) {
+            model->setKeywordColors(m_keywordColors);
+        }
+    }
+    if (m_calendarView) {
+        m_calendarView->setKeywordColors(m_keywordColors);
+    }
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)

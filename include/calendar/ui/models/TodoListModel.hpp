@@ -2,6 +2,8 @@
 
 #include <QAbstractListModel>
 #include <QVector>
+#include <QHash>
+#include <QColor>
 
 #include "calendar/data/Todo.hpp"
 
@@ -23,12 +25,16 @@ public:
 
     void setTodos(QVector<data::TodoItem> todos);
     const data::TodoItem *todoAt(const QModelIndex &index) const;
+    void setKeywordColors(QHash<QString, QColor> colors);
 
 signals:
     void todoActivated(const data::TodoItem &todo);
 
 private:
     QVector<data::TodoItem> m_todos;
+    QHash<QString, QColor> m_keywordColors;
+
+    QColor keywordColorFor(const data::TodoItem &todo) const;
 };
 
 } // namespace ui

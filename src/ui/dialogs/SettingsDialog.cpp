@@ -113,6 +113,26 @@ QWidget *SettingsDialog::createKeywordPage()
     return page;
 }
 
+void SettingsDialog::setKeywordText(const QString &text)
+{
+    if (!m_keywordEditor) {
+        return;
+    }
+    m_keywordEditor->setPlainText(text);
+    QTextCursor cursor = m_keywordEditor->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    m_keywordEditor->setTextCursor(cursor);
+    updateColorFromCursor();
+}
+
+QString SettingsDialog::keywordText() const
+{
+    if (!m_keywordEditor) {
+        return {};
+    }
+    return m_keywordEditor->toPlainText();
+}
+
 void SettingsDialog::updateColorFromCursor()
 {
     if (!m_keywordEditor || !m_colorDialog) {

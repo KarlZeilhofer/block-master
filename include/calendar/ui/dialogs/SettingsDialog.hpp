@@ -18,6 +18,8 @@ class SettingsDialog : public QDialog
 
 public:
     explicit SettingsDialog(QWidget *parent = nullptr);
+    void setKeywordText(const QString &text);
+    QString keywordText() const;
 
 private:
     void setupUi();

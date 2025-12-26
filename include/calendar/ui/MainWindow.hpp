@@ -2,6 +2,8 @@
 
 #include <QDate>
 #include <QMainWindow>
+#include <QHash>
+#include <QColor>
 #include <memory>
 #include <vector>
 #include <optional>
@@ -112,6 +114,10 @@ private:
     QString todosToPlainText(const QList<data::TodoItem> &todos) const;
     void performUndo();
     void performRedo();
+    void loadKeywordDefinitions();
+    void saveKeywordDefinitions(const QString &text) const;
+    QHash<QString, QColor> parseKeywordDefinitions(const QString &text) const;
+    void applyKeywordColorsToUi();
     bool eventFilter(QObject *watched, QEvent *event) override;
 
     QWidget *m_todoPanel = nullptr;
@@ -151,6 +157,8 @@ private:
     QListView *m_activeTodoView = nullptr;
     QShortcut *m_cancelPlacementShortcut = nullptr;
     QString m_eventSearchFilter;
+    QString m_keywordDefinitionText;
+    QHash<QString, QColor> m_keywordColors;
 };
 
 } // namespace ui

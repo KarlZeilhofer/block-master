@@ -30,6 +30,7 @@
 #include <QToolTip>
 #include <QHelpEvent>
 #include <QStringList>
+#include <QRegularExpression>
 
 #include "calendar/ui/mime/TodoMime.hpp"
 
@@ -151,6 +152,21 @@ QFont fitFontToHeight(const QFont &base, double availableHeight, double multipli
     }
     return font;
 }
+QColor textColorForBackground(const QColor &bg)
+{
+    if (!bg.isValid()) {
+        return Qt::white;
+    }
+    const double luminance = 0.299 * bg.red() + 0.587 * bg.green() + 0.114 * bg.blue();
+    return luminance > 155.0 ? Qt::black : Qt::white;
+}
+
+const QRegularExpression &keywordRegex()
+{
+    static const QRegularExpression regex(QStringLiteral("#([A-Za-z0-9_ÄÖÜäöüß]+)"));
+    return regex;
+}
+
 } // namespace
 
 CalendarView::CalendarView(QWidget *parent)
@@ -258,6 +274,12 @@ void CalendarView::setEventSearchFilter(const QString &text)
         return;
     }
     m_eventSearchFilter = normalized;
+    viewport()->update();
+}
+
+void CalendarView::setKeywordColors(QHash<QString, QColor> colors)
+{
+    m_keywordColors = std::move(colors);
     viewport()->update();
 }
 
@@ -512,14 +534,26 @@ void CalendarView::paintEvent(QPaintEvent *event)
         }
 
         const bool matchesFilter = eventMatchesFilter(eventData);
+        QColor keywordColor = keywordColorForEvent(eventData);
         QColor color = palette().highlight().color();
         QColor textColor = Qt::white;
-        if (!matchesFilter) {
+        if (keywordColor.isValid()) {
+            if (matchesFilter) {
+                color = keywordColor;
+                textColor = textColorForBackground(color);
+            } else {
+                color = keywordColor.lighter(170);
+                textColor = palette().mid().color();
+            }
+        } else if (!matchesFilter) {
             color = palette().midlight().color();
             textColor = palette().mid().color();
         }
         if (eventData.id == m_selectedEvent) {
             color = color.darker(125);
+            if (keywordColor.isValid() && matchesFilter) {
+                textColor = textColorForBackground(color);
+            }
         }
         const qint64 durationMinutes = qMax<qint64>(5, eventData.start.secsTo(eventData.end) / 60);
         const int hours = static_cast<int>(durationMinutes / 60);
@@ -2247,6 +2281,34 @@ void CalendarView::storePointerPosition(const QPoint &pos)
 void CalendarView::clearPointerPosition()
 {
     m_lastPointerPosValid = false;
+}
+
+QColor CalendarView::keywordColorForEvent(const data::CalendarEvent &event) const
+{
+    QColor color = keywordColorForText(event.title);
+    if (!color.isValid()) {
+        color = keywordColorForText(event.description);
+    }
+    if (!color.isValid()) {
+        color = keywordColorForText(event.location);
+    }
+    return color;
+}
+
+QColor CalendarView::keywordColorForText(const QString &text) const
+{
+    if (text.isEmpty() || m_keywordColors.isEmpty()) {
+        return {};
+    }
+    auto it = keywordRegex().globalMatch(text);
+    while (it.hasNext()) {
+        const QString tag = it.next().captured(1).toLower();
+        auto colorIt = m_keywordColors.constFind(tag);
+        if (colorIt != m_keywordColors.constEnd()) {
+            return colorIt.value();
+        }
+    }
+    return {};
 }
 
 QString CalendarView::eventTooltipText(const data::CalendarEvent &event) const

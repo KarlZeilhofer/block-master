@@ -9,6 +9,8 @@
 #include <QString>
 #include <QPair>
 #include <QElapsedTimer>
+#include <QHash>
+#include <QColor>
 #include <map>
 
 #include "calendar/data/Event.hpp"
@@ -34,6 +36,7 @@ public:
     int verticalScrollValue() const;
     void setVerticalScrollValue(int value);
     void setEventSearchFilter(const QString &text);
+    void setKeywordColors(QHash<QString, QColor> colors);
 signals:
     void dayZoomRequested(bool zoomIn);
     void dayScrollRequested(int dayDelta);
@@ -105,6 +108,8 @@ private:
     void refreshActiveDragPreview();
     void storePointerPosition(const QPoint &pos);
     void clearPointerPosition();
+    QColor keywordColorForEvent(const data::CalendarEvent &event) const;
+    QColor keywordColorForText(const QString &text) const;
     void beginInternalEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes);
     void updateInternalEventDrag(const QPointF &scenePos);
     void finalizeInternalEventDrag(const QPointF &scenePos);
@@ -203,6 +208,7 @@ private:
     mutable std::map<std::pair<QUuid, int>, LayoutInfo> m_layoutCache;
     QPoint m_lastPointerPos;
     bool m_lastPointerPosValid = false;
+    QHash<QString, QColor> m_keywordColors;
 };
 
 } // namespace ui

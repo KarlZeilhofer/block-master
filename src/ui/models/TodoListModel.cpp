@@ -2,6 +2,7 @@
 
 #include <QDataStream>
 #include <QMimeData>
+#include <QRegularExpression>
 
 #include "calendar/ui/mime/TodoMime.hpp"
 
@@ -50,6 +51,13 @@ QVariant TodoListModel::data(const QModelIndex &index, int role) const
     }
     case Qt::ToolTipRole:
         return todo.description;
+    case Qt::ForegroundRole: {
+        QColor keywordColor = keywordColorFor(todo);
+        if (keywordColor.isValid()) {
+            return keywordColor;
+        }
+        return {};
+    }
     default:
         return {};
     }
@@ -98,6 +106,47 @@ const data::TodoItem *TodoListModel::todoAt(const QModelIndex &index) const
         return nullptr;
     }
     return &m_todos.at(index.row());
+}
+
+void TodoListModel::setKeywordColors(QHash<QString, QColor> colors)
+{
+    m_keywordColors = std::move(colors);
+    if (m_todos.isEmpty()) {
+        return;
+    }
+    const QModelIndex first = index(0, 0);
+    const QModelIndex last = index(m_todos.size() - 1, 0);
+    emit dataChanged(first, last, { Qt::ForegroundRole });
+}
+
+QColor TodoListModel::keywordColorFor(const data::TodoItem &todo) const
+{
+    if (m_keywordColors.isEmpty()) {
+        return {};
+    }
+    static const QRegularExpression tagRegex(QStringLiteral("#([A-Za-z0-9_ÄÖÜäöüß]+)"));
+    auto matchColor = [&](const QString &text) -> QColor {
+        if (text.isEmpty()) {
+            return {};
+        }
+        auto it = tagRegex.globalMatch(text);
+        while (it.hasNext()) {
+            const QString tag = it.next().captured(1).toLower();
+            auto colorIt = m_keywordColors.constFind(tag);
+            if (colorIt != m_keywordColors.constEnd()) {
+                return colorIt.value();
+            }
+        }
+        return {};
+    };
+    QColor color = matchColor(todo.title);
+    if (!color.isValid()) {
+        color = matchColor(todo.description);
+    }
+    if (!color.isValid()) {
+        color = matchColor(todo.location);
+    }
+    return color;
 }
 
 } // namespace ui
