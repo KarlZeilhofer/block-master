@@ -98,6 +98,11 @@ QWidget *SettingsDialog::createKeywordPage()
     m_colorDialog->setOption(QColorDialog::NoButtons, true);
     m_colorDialog->setOption(QColorDialog::ShowAlphaChannel, false);
     m_colorDialog->setWindowFlags(m_colorDialog->windowFlags() & ~Qt::Dialog);
+    m_colorDialog->setFocusPolicy(Qt::NoFocus);
+    const auto colorChildren = m_colorDialog->findChildren<QWidget *>();
+    for (auto *child : colorChildren) {
+        child->setFocusPolicy(Qt::NoFocus);
+    }
     layout->addWidget(m_colorDialog);
 
     connect(m_keywordEditor, &QPlainTextEdit::cursorPositionChanged, this, &SettingsDialog::updateColorFromCursor);
@@ -121,9 +126,13 @@ void SettingsDialog::updateColorFromCursor()
     if (!color.isValid()) {
         color = QColor(Qt::white);
     }
+    const bool editorHadFocus = m_keywordEditor->hasFocus();
     m_updatingFromEditor = true;
     m_colorDialog->setCurrentColor(color);
     m_updatingFromEditor = false;
+    if (editorHadFocus && !m_keywordEditor->hasFocus()) {
+        m_keywordEditor->setFocus(Qt::OtherFocusReason);
+    }
 }
 
 void SettingsDialog::applyColorToCurrentLine(const QColor &color)
