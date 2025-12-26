@@ -833,7 +833,10 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
                 continue;
             }
             const QRectF topRect = adjustedRectForSegment(ev, segments.front());
-            if (scenePos.x() >= topRect.left() && scenePos.x() <= topRect.right()) {
+            const bool overTopHandle = scenePos.x() >= topRect.left()
+                && scenePos.x() <= topRect.right()
+                && m_hoverTopHandleId == ev.id;
+            if (overTopHandle) {
                 auto topArea = handleArea(ev, true);
                 if (scenePos.y() >= topArea.first && scenePos.y() <= topArea.second) {
                     beginResize(ev, true);
@@ -845,8 +848,12 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
                     return;
                 }
             }
+
             const QRectF bottomRect = adjustedRectForSegment(ev, segments.back());
-            if (scenePos.x() >= bottomRect.left() && scenePos.x() <= bottomRect.right()) {
+            const bool overBottomHandle = scenePos.x() >= bottomRect.left()
+                && scenePos.x() <= bottomRect.right()
+                && m_hoverBottomHandleId == ev.id;
+            if (overBottomHandle) {
                 auto bottomArea = handleArea(ev, false);
                 if (scenePos.y() >= bottomArea.first && scenePos.y() <= bottomArea.second) {
                     beginResize(ev, false);
@@ -1113,9 +1120,10 @@ void CalendarView::dropEvent(QDropEvent *event)
         QDateTime dateTime = snapDateTime(dateTimeOpt.value());
         const int durationMinutes = entry->durationMinutes > 0 ? entry->durationMinutes : 60;
         dateTime = dateTime.addSecs(-placementOffsetMinutes(durationMinutes) * 60);
-        emit todoDropped(entry->id, dateTime);
+        const bool copy = event->keyboardModifiers().testFlag(Qt::ControlModifier);
+        emit todoDropped(entry->id, dateTime, copy);
         temporarilyDisableNewEventCreation();
-        event->setDropAction(Qt::MoveAction);
+        event->setDropAction(copy ? Qt::CopyAction : Qt::MoveAction);
         event->accept();
         return;
     }

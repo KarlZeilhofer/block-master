@@ -45,7 +45,7 @@ signals:
     void eventSelected(const data::CalendarEvent &event);
     void eventResizeRequested(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd);
     void selectionCleared();
-    void todoDropped(const QUuid &todoId, const QDateTime &start);
+    void todoDropped(const QUuid &todoId, const QDateTime &start, bool copyTodo);
     void eventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
     void externalPlacementConfirmed(const QDateTime &start);
     void eventDroppedToTodo(const data::CalendarEvent &event, data::TodoStatus status);

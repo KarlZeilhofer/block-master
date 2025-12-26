@@ -77,7 +77,7 @@ private:
     void saveTodoEdits(const data::TodoItem &todo);
     void applyEventResize(const QUuid &id, const QDateTime &newStart, const QDateTime &newEnd);
     void clearSelection();
-    void handleTodoDropped(const QUuid &todoId, const QDateTime &start);
+    void handleTodoDropped(const QUuid &todoId, const QDateTime &start, bool copy);
     void handleEventDropRequested(const QUuid &eventId, const QDateTime &start, bool copy);
     void handleEventDroppedToTodo(const data::CalendarEvent &event, data::TodoStatus status);
     void handleTodoHoverPreview(data::TodoStatus status, const data::CalendarEvent &event);
@@ -125,6 +125,7 @@ private:
     EventPreviewPanel *m_previewPanel = nullptr;
     std::unique_ptr<EventDetailDialog> m_eventDetailDialog;
     bool m_previewVisible = false;
+    QLabel *m_shortcutLabel = nullptr;
     QDate m_currentDate;
     int m_visibleDays = 9;
     double m_dayOffset = 0.0;

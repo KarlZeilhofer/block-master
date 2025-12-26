@@ -333,7 +333,15 @@ void MainWindow::setupUi()
                 });
     }
     updateCalendarRange();
-    statusBar()->showMessage(tr("Bereit"));
+    if (statusBar() && !m_shortcutLabel) {
+        m_shortcutLabel = new QLabel(tr("Shortcuts: ⏎ Details • E Inline • Ctrl+C Copy • Ctrl+V Paste • Ctrl+D Duplizieren • Del Löschen • Space Info"),
+                                     this);
+        m_shortcutLabel->setObjectName(QStringLiteral("shortcutHintLabel"));
+        statusBar()->addPermanentWidget(m_shortcutLabel, 1);
+        statusBar()->showMessage(tr("Bereit"));
+    } else if (statusBar()) {
+        statusBar()->showMessage(tr("Bereit"));
+    }
 }
 
 QToolBar *MainWindow::createNavigationBar()
@@ -1168,7 +1176,7 @@ void MainWindow::clearSelection()
     cancelPendingPlacement();
 }
 
-void MainWindow::handleTodoDropped(const QUuid &todoId, const QDateTime &start)
+void MainWindow::handleTodoDropped(const QUuid &todoId, const QDateTime &start, bool copy)
 {
     auto todoOpt = m_appContext->todoRepository().findById(todoId);
     if (!todoOpt.has_value()) {
@@ -1184,13 +1192,19 @@ void MainWindow::handleTodoDropped(const QUuid &todoId, const QDateTime &start)
     event.end = start.addSecs(durationMinutes * 60);
     event.location = todoOpt->location;
     m_appContext->eventRepository().addEvent(event);
-    m_appContext->todoRepository().removeTodo(todoId);
+    if (!copy) {
+        m_appContext->todoRepository().removeTodo(todoId);
+    }
 
-    clearAllTodoSelections();
-    m_selectedTodo.reset();
-    refreshTodos();
+    if (!copy) {
+        clearAllTodoSelections();
+        m_selectedTodo.reset();
+        refreshTodos();
+    }
     refreshCalendar();
-    statusBar()->showMessage(tr("TODO \"%1\" eingeplant").arg(todoOpt->title), 2000);
+    statusBar()->showMessage(copy ? tr("TODO \"%1\" dupliziert").arg(todoOpt->title)
+                                  : tr("TODO \"%1\" eingeplant").arg(todoOpt->title),
+                             2000);
 }
 
 void MainWindow::handleTodoSelectionChanged(TodoListView *view)
@@ -1342,7 +1356,6 @@ void MainWindow::handleHoveredDateTime(const QDateTime &dt)
         const QDateTime anchored = applyPlacementAnchor(snapped, m_pendingPlacementDuration);
         m_calendarView->updatePlacementPreview(anchored);
     }
-    statusBar()->showMessage(tr("Cursor: %1").arg(dt.toString(Qt::ISODate)), 1000);
 }
 
 void MainWindow::handleEventCreationRequest(const QDateTime &start, const QDateTime &end)
@@ -1485,7 +1498,9 @@ void MainWindow::showPreviewForSelection()
 
 void MainWindow::showSelectionHint()
 {
-    statusBar()->showMessage(tr("Shortcuts: ⏎ Details • E Inline • Ctrl+C Copy • Ctrl+V Paste • Ctrl+D Duplizieren • Del Löschen • Space Info"), 3500);
+    if (m_shortcutLabel) {
+        m_shortcutLabel->setText(tr("Shortcuts: ⏎ Details • E Inline • Ctrl+C Copy • Ctrl+V Paste • Ctrl+D Duplizieren • Del Löschen • Space Info"));
+    }
 }
 
 void MainWindow::copySelection()

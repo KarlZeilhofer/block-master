@@ -1,24 +1,11 @@
 Issues ###########################
 
-Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
 
 
 Entfernen von TODOs per Delete-Taste
 
 
-Cursor-Position braucht nicht in der Statusleiste angezeigt werden. Völlig unnötig. Zeige lieber Shortcuts an. 
-
-
-Die Texte in der Titelzeile sind nicht immer lesbar, je nachdem, wie breit die Spalten sind. 
-Reduziere die Anzeige für Wochentag und Monat/Jahre Stufenweise: 
-Samstag -> Sams > Sa
-Dezember 2025 -> Dez 25 > Dz25
-Die Monate in der kürzesten Schreibweise: Jr Fb Mz Ap Ma Jn Jl Ag Sp Ok Nv Dz
-Zusätzlich soll ein Tooltip bei Mousehover erscheinen mit ausgeschriebenem Datum. 
-
-
-
-Start/Ende Zeiten (Datum + Uhrzeiten) können in InlineEdit nicht editiert werden!
+Start/Ende Zeiten (Datum + Uhrzeiten) soll man in InlineEdit nicht editieren können!
 Das macht man immer grafisch. Somit fallen diese Elemente auch aus der Tab-Reihenfolge heraus. Somit wird die UI besser bedienbar. Lass die Elemente als read only stehen. 
 
 Es braucht in den Einstellungen eine Möglichkeit, Schlüsselwörter definieren zu können, und ihnen eine RGB-Farbe zuweisen zu können. Beispiel: "Urlaub #8080ff" oder "Deadline #ff3030". Für schnelles bearbeiten soll ein Plain Text edit verwendet werden, aber rechts davon gibt es auch einen Colorchooser, der dann für die aktuelle Zeile, in der der Cursor steht, angewandt wird. Bette den Color Chooser direkt ein, und synce ihn mit der Cursorposition. 
@@ -28,13 +15,17 @@ Die hier beschriebene erste Einstellmöglichkeit heißt "Schlüsselwörter".
 Wird bei einem Drag-Event nur gescrollt (horizontal oder vertikal) wird das Ghost Objekt nicht aktualisiert. 
 Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position verändert, wird das Objket korrekt gerendert. Aber beim Verschieben über Tage hinweg, wo man scrollt, bewegt sich nicht zwangsläufig die Maus. 
 
-Es gibt einen Bug, dass eine Event-Dauer verändert wird, wenn ein event ausgewählt ist, und man dann in einen leeren bereich einen drag-event startet. 
-Events dürfen die Dauer nur dann ändern, wenn einer der beiden Handles aktiv ist (top oder bottom handle). 
 
 WIP ################################
 
 
 DONE ###############################
+
+Ein Strg+Drag soll ein TODO nicht aus der Liste Löschen, sondern nur einen Event erstellen, ähnlich zu einem Duplicate eines Events mit Strg+Drag. 
+
+Es gibt einen Bug, dass eine Event-Dauer verändert wird, wenn ein event ausgewählt ist, und man dann in einen leeren bereich einen drag-event startet. 
+Events dürfen die Dauer nur dann ändern, wenn einer der beiden Handles aktiv ist (top oder bottom handle). 
+
 
 Doppelklick auf Events oder TODOs öffnet den InlineEditor
 
