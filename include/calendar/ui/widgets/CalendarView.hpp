@@ -99,6 +99,8 @@ private:
     double dayColumnLeft(int dayIndex) const;
     double contentRightEdge() const;
     double mapToDayPosition(double x) const;
+    int daySlotCount() const;
+    bool hasTrailingPartialDay() const;
     void beginInternalEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes);
     void updateInternalEventDrag(const QPointF &scenePos);
     void finalizeInternalEventDrag(const QPointF &scenePos);

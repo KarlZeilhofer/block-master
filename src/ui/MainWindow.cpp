@@ -999,14 +999,15 @@ void MainWindow::updateCalendarRange()
     if (!m_scheduleViewModel || !m_calendarView) {
         return;
     }
-    const QDate end = m_currentDate.addDays(m_visibleDays - 1);
-    m_scheduleViewModel->setRange(m_currentDate, end);
+    const QDate viewEnd = m_currentDate.addDays(m_visibleDays - 1);
+    const QDate fetchEnd = viewEnd.addDays(1);
+    m_scheduleViewModel->setRange(m_currentDate, fetchEnd);
     m_calendarView->setDateRange(m_currentDate, m_visibleDays);
     m_calendarView->setDayOffset(m_dayOffset);
     if (m_viewInfoLabel) {
         m_viewInfoLabel->setText(tr("%1 - %2 (%3 Tage)")
                                      .arg(m_currentDate.toString(Qt::ISODate),
-                                          end.toString(Qt::ISODate))
+                                          viewEnd.toString(Qt::ISODate))
                                      .arg(m_visibleDays));
     }
     saveCalendarState();

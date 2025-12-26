@@ -316,6 +316,7 @@ void CalendarView::paintEvent(QPaintEvent *event)
     const double totalHeaderHeight = this->totalHeaderHeight();
     const double bodyOriginY = totalHeaderHeight - yOffset;
     const double totalWidth = contentRightEdge();
+    const int daySlots = daySlotCount();
 
     // Header background (sticky)
     painter.fillRect(QRectF(0, 0, viewport()->width(), totalHeaderHeight), palette().alternateBase());
@@ -333,10 +334,10 @@ void CalendarView::paintEvent(QPaintEvent *event)
         monthFont.setPointSizeF(baseSize * 2.0);
         painter.setFont(monthFont);
         painter.setPen(Qt::black);
-        for (int day = 0; day < m_dayCount;) {
+        for (int day = 0; day < daySlots;) {
             const QDate date = m_startDate.addDays(day);
             int span = 1;
-            while (day + span < m_dayCount && m_startDate.addDays(day + span).month() == date.month()) {
+            while (day + span < daySlots && m_startDate.addDays(day + span).month() == date.month()) {
                 ++span;
             }
             const double startX = dayColumnLeft(day);
@@ -355,7 +356,7 @@ void CalendarView::paintEvent(QPaintEvent *event)
                      QPointF(contentRightEdge(), monthBandHeight));
     const QDate today = QDate::currentDate();
 
-    for (int day = 0; day < m_dayCount; ++day) {
+    for (int day = 0; day < daySlots; ++day) {
         const double x = dayColumnLeft(day);
         QRectF headerRect(x, monthBandHeight, m_dayWidth, m_headerHeight);
         const QDate date = m_startDate.addDays(day);
@@ -463,7 +464,7 @@ void CalendarView::paintEvent(QPaintEvent *event)
     }
 
     painter.setPen(palette().dark().color());
-    for (int day = 0; day < m_dayCount; ++day) {
+    for (int day = 0; day < daySlots; ++day) {
         const double x = dayColumnLeft(day);
         painter.drawRect(QRectF(x, bodyOriginY, m_dayWidth, bodyHeight));
     }
@@ -480,19 +481,6 @@ void CalendarView::paintEvent(QPaintEvent *event)
             continue;
         }
         painter.drawLine(QPointF(m_timeAxisWidth, y), QPointF(totalWidth, y));
-    }
-
-    const QDate todayLineDate = QDate::currentDate();
-    if (todayLineDate >= m_startDate && todayLineDate < m_startDate.addDays(m_dayCount)) {
-        const int dayIndex = m_startDate.daysTo(todayLineDate);
-        const QTime now = QTime::currentTime();
-        const double minutes = now.hour() * 60.0 + now.minute() + now.second() / 60.0;
-        const double y = bodyOriginY + (minutes / 60.0) * m_hourHeight;
-        if (y >= totalHeaderHeight && y <= bodyOriginY + bodyHeight) {
-            const double xStart = dayColumnLeft(dayIndex);
-            painter.setPen(QPen(Qt::red, 2));
-            painter.drawLine(QPointF(xStart, y), QPointF(xStart + m_dayWidth, y));
-        }
     }
 
     painter.setRenderHint(QPainter::Antialiasing, true);
@@ -637,6 +625,25 @@ void CalendarView::paintEvent(QPaintEvent *event)
         }
     };
 
+    const auto paintTodayLine = [&]() {
+        const QDate todayLineDate = QDate::currentDate();
+        if (todayLineDate < m_startDate || todayLineDate >= m_startDate.addDays(daySlots)) {
+            return;
+        }
+        const int dayIndex = qBound(0,
+                                    static_cast<int>(m_startDate.daysTo(todayLineDate)),
+                                    qMax(0, daySlots - 1));
+        const QTime now = QTime::currentTime();
+        const double minutes = now.hour() * 60.0 + now.minute() + now.second() / 60.0;
+        const double y = bodyOriginY + (minutes / 60.0) * m_hourHeight;
+        if (y < totalHeaderHeight || y > bodyOriginY + bodyHeight) {
+            return;
+        }
+        painter.setPen(QPen(Qt::red, 2));
+        const double xStart = dayColumnLeft(dayIndex);
+        painter.drawLine(QPointF(xStart, y), QPointF(xStart + m_dayWidth, y));
+    };
+
     std::vector<const data::CalendarEvent *> baseEvents;
     std::vector<const data::CalendarEvent *> overlayEvents;
     const data::CalendarEvent *frontEvent = nullptr;
@@ -724,6 +731,7 @@ void CalendarView::paintEvent(QPaintEvent *event)
     }
 
     painter.restore();
+    paintTodayLine();
 
     if (!highlightLines.empty()) {
         for (const auto &[lineX, color] : highlightLines) {
@@ -767,7 +775,8 @@ bool CalendarView::viewportEvent(QEvent *event)
         if (m_dayWidth > 0.0 && pos.x() >= m_timeAxisWidth) {
             const double dayPosition = mapToDayPosition(pos.x());
             if (dayPosition >= 0.0) {
-                const int dayIndex = qBound(0, static_cast<int>(dayPosition), m_dayCount - 1);
+                const int slotCount = daySlotCount();
+                const int dayIndex = qBound(0, static_cast<int>(dayPosition), qMax(0, slotCount - 1));
             if (pos.y() >= monthHeight && pos.y() <= totalHeight) {
                 const QDate date = m_startDate.addDays(dayIndex);
                 const QString tooltip = QLocale().toString(date, QLocale::LongFormat);
@@ -1238,7 +1247,8 @@ std::vector<CalendarView::EventSegment> CalendarView::segmentsForEvent(const dat
     if (!event.start.isValid() || !event.end.isValid() || event.start >= event.end || m_dayWidth <= 0.0) {
         return segments;
     }
-    for (int day = 0; day < m_dayCount; ++day) {
+    const int slotCount = daySlotCount();
+    for (int day = 0; day < slotCount; ++day) {
         const QDate date = m_startDate.addDays(day);
         const QDateTime dayStart(date, QTime(0, 0));
         const QDateTime dayEnd = dayStart.addDays(1);
@@ -1278,7 +1288,8 @@ void CalendarView::ensureLayoutCache() const
         return;
     }
     m_layoutCache.clear();
-    if (m_dayCount <= 0) {
+    const int slotCount = daySlotCount();
+    if (slotCount <= 0) {
         m_layoutDirty = false;
         return;
     }
@@ -1296,11 +1307,11 @@ void CalendarView::ensureLayoutCache() const
         bool isContained = false;
     };
 
-    std::vector<std::vector<DayEntry>> perDay(static_cast<std::size_t>(m_dayCount));
+    std::vector<std::vector<DayEntry>> perDay(static_cast<std::size_t>(slotCount));
     for (const auto &event : m_events) {
         const auto segments = segmentsForEvent(event);
         for (const auto &segment : segments) {
-            if (segment.dayIndex < 0 || segment.dayIndex >= m_dayCount) {
+            if (segment.dayIndex < 0 || segment.dayIndex >= slotCount) {
                 continue;
             }
             DayEntry entry;
@@ -1585,7 +1596,8 @@ void CalendarView::emitHoverAt(const QPoint &pos)
         const int minute = static_cast<int>((hours - hour) * 60);
         const double dayPosition = mapToDayPosition(scenePos.x());
         const int dayIndex = static_cast<int>(dayPosition);
-        if (dayPosition >= 0.0 && dayIndex >= 0 && dayIndex < m_dayCount) {
+        const int slotCount = daySlotCount();
+        if (dayPosition >= 0.0 && dayIndex >= 0 && dayIndex < slotCount) {
             QDateTime dt(m_startDate.addDays(dayIndex), QTime(hour, minute));
             emit hoveredDateTime(dt);
         }
@@ -1734,7 +1746,8 @@ std::optional<QDateTime> CalendarView::dateTimeAtScene(const QPointF &scenePos) 
         return std::nullopt;
     }
     const int dayIndex = static_cast<int>(dayPosition);
-    if (dayIndex < 0 || dayIndex >= m_dayCount) {
+    const int slotCount = daySlotCount();
+    if (dayIndex < 0 || dayIndex >= slotCount) {
         return std::nullopt;
     }
     const double hours = y / m_hourHeight;
@@ -2141,7 +2154,7 @@ double CalendarView::dayColumnLeft(int dayIndex) const
 
 double CalendarView::contentRightEdge() const
 {
-    return m_timeAxisWidth + (static_cast<double>(m_dayCount) - m_dayOffset) * m_dayWidth;
+    return m_timeAxisWidth + (static_cast<double>(daySlotCount()) - m_dayOffset) * m_dayWidth;
 }
 
 double CalendarView::mapToDayPosition(double x) const
@@ -2150,6 +2163,17 @@ double CalendarView::mapToDayPosition(double x) const
         return -1.0;
     }
     return (x - m_timeAxisWidth) / m_dayWidth + m_dayOffset;
+}
+
+bool CalendarView::hasTrailingPartialDay() const
+{
+    constexpr double Epsilon = 1e-6;
+    return m_dayOffset > Epsilon;
+}
+
+int CalendarView::daySlotCount() const
+{
+    return m_dayCount + (hasTrailingPartialDay() ? 1 : 0);
 }
 
 QString CalendarView::eventTooltipText(const data::CalendarEvent &event) const
