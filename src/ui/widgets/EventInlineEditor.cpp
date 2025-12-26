@@ -38,11 +38,19 @@ EventInlineEditor::EventInlineEditor(QWidget *parent)
     m_startEdit = new QDateTimeEdit(this);
     m_startEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd hh:mm"));
     m_startEdit->setCalendarPopup(true);
+    m_startEdit->setReadOnly(true);
+    m_startEdit->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    m_startEdit->setFocusPolicy(Qt::NoFocus);
+    m_startEdit->setProperty("readOnlyField", true);
     formLayout->addRow(tr("Start"), m_startEdit);
 
     m_endEdit = new QDateTimeEdit(this);
     m_endEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd hh:mm"));
     m_endEdit->setCalendarPopup(true);
+    m_endEdit->setReadOnly(true);
+    m_endEdit->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    m_endEdit->setFocusPolicy(Qt::NoFocus);
+    m_endEdit->setProperty("readOnlyField", true);
     formLayout->addRow(tr("Ende"), m_endEdit);
     m_startLabel = qobject_cast<QLabel *>(formLayout->labelForField(m_startEdit));
     m_endLabel = qobject_cast<QLabel *>(formLayout->labelForField(m_endEdit));

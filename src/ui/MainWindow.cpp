@@ -454,6 +454,7 @@ QWidget *MainWindow::createTodoPanel()
         connect(view, &TodoListView::activated, this, &MainWindow::handleTodoActivated);
         connect(view, &TodoListView::doubleClicked, this, &MainWindow::handleTodoDoubleClicked);
         connect(view, &TodoListView::todosDropped, this, &MainWindow::handleTodoStatusDrop);
+        connect(view, &TodoListView::deleteRequested, this, &MainWindow::deleteSelectedTodos);
         view->setContextMenuPolicy(Qt::ActionsContextMenu);
         if (completed) {
             QPalette pal = view->palette();
@@ -466,7 +467,6 @@ QWidget *MainWindow::createTodoPanel()
         deleteAction->setShortcutContext(Qt::WidgetShortcut);
         view->addAction(deleteAction);
         connect(deleteAction, &QAction::triggered, this, &MainWindow::deleteSelectedTodos);
-        addAction(deleteAction);
 
         auto *plainPasteAction = new QAction(tr("Einfügen aus Plaintext"), view);
         view->addAction(plainPasteAction);
@@ -543,6 +543,9 @@ QWidget *MainWindow::createCalendarView()
     m_previewPanel->setVisible(false);
 
     layout->addWidget(m_calendarView, 1);
+    auto *calendarDeleteShortcut = new QShortcut(QKeySequence::Delete, m_calendarView);
+    calendarDeleteShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(calendarDeleteShortcut, &QShortcut::activated, this, &MainWindow::deleteSelection);
 
     layout->addWidget(m_previewPanel);
     layout->addWidget(m_eventEditor);
@@ -608,10 +611,6 @@ void MainWindow::setupShortcuts(QToolBar *toolbar)
     auto *duplicateShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_D), this);
     duplicateShortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(duplicateShortcut, &QShortcut::activated, this, &MainWindow::duplicateSelection);
-
-    auto *deleteShortcut = new QShortcut(QKeySequence::Delete, this);
-    deleteShortcut->setContext(Qt::WidgetWithChildrenShortcut);
-    connect(deleteShortcut, &QShortcut::activated, this, &MainWindow::deleteSelection);
 
     m_cancelPlacementShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
     m_cancelPlacementShortcut->setContext(Qt::WidgetWithChildrenShortcut);
@@ -904,24 +903,16 @@ void MainWindow::addQuickTodo()
 
 void MainWindow::deleteSelectedTodos()
 {
-    if (!m_todoViewModel || !m_activeTodoView) {
+    if (!m_todoViewModel) {
         return;
     }
-    auto *selectionModel = m_activeTodoView->selectionModel();
-    auto *proxy = proxyForView(m_activeTodoView);
-    if (!selectionModel || !proxy) {
-        return;
-    }
-    const auto indexes = selectionModel->selectedIndexes();
-    if (indexes.isEmpty()) {
+    const auto todos = selectedTodos();
+    if (todos.isEmpty()) {
         return;
     }
     bool removed = false;
-    for (const auto &index : indexes) {
-        const auto sourceIndex = proxy->mapToSource(index);
-        if (const auto *todo = m_todoViewModel->model()->todoAt(sourceIndex)) {
-            removed |= m_appContext->todoRepository().removeTodo(todo->id);
-        }
+    for (const auto &todo : todos) {
+        removed |= m_appContext->todoRepository().removeTodo(todo.id);
     }
     if (removed) {
         clearAllTodoSelections();
@@ -1771,24 +1762,25 @@ void MainWindow::cancelPendingPlacement()
 
 void MainWindow::deleteSelection()
 {
-    if (!m_selectedEvent.has_value()) {
+    if (m_selectedEvent.has_value()) {
+        if (m_eventEditor) {
+            m_eventEditor->clearEditor();
+            setInlineEditorActive(false);
+        }
+        cancelPendingPlacement();
+        const bool removed = m_appContext->eventRepository().removeEvent(m_selectedEvent->id);
+        if (removed) {
+            statusBar()->showMessage(tr("Termin gelöscht"), 2000);
+            m_selectedEvent.reset();
+            if (m_previewPanel) {
+                m_previewPanel->clearPreview();
+            }
+            m_previewVisible = false;
+            refreshCalendar();
+        }
         return;
     }
-    if (m_eventEditor) {
-        m_eventEditor->clearEditor();
-        setInlineEditorActive(false);
-    }
-    cancelPendingPlacement();
-    const bool removed = m_appContext->eventRepository().removeEvent(m_selectedEvent->id);
-    if (removed) {
-        statusBar()->showMessage(tr("Termin gelöscht"), 2000);
-        m_selectedEvent.reset();
-        if (m_previewPanel) {
-            m_previewPanel->clearPreview();
-        }
-        m_previewVisible = false;
-        refreshCalendar();
-    }
+    deleteSelectedTodos();
 }
 
 void MainWindow::clearTodoHoverGhosts()

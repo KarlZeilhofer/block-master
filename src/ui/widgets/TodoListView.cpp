@@ -3,6 +3,7 @@
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDropEvent>
+#include <QKeyEvent>
 #include <QMimeData>
 #include <QPainter>
 
@@ -125,6 +126,16 @@ void TodoListView::clearGhostPreview()
 bool TodoListView::acceptTodoMime(const QMimeData *mime) const
 {
     return mime && mime->hasFormat(TodoMimeType);
+}
+
+void TodoListView::keyPressEvent(QKeyEvent *event)
+{
+    if (event && event->key() == Qt::Key_Delete && event->modifiers() == Qt::NoModifier) {
+        emit deleteRequested();
+        event->accept();
+        return;
+    }
+    QListView::keyPressEvent(event);
 }
 
 QList<QUuid> TodoListView::decodeTodoIds(const QMimeData *mime) const

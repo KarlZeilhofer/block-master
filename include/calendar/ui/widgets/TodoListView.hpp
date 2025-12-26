@@ -21,6 +21,7 @@ public:
 
 signals:
     void todosDropped(const QList<QUuid> &todoIds, data::TodoStatus status);
+    void deleteRequested();
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -28,6 +29,7 @@ protected:
     void dropEvent(QDropEvent *event) override;
     void dragLeaveEvent(QDragLeaveEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
 public:
     void showGhostPreview(const QString &text);
