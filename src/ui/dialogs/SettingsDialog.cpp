@@ -198,6 +198,9 @@ void SettingsDialog::applyColorToCurrentLine(const QColor &color)
     restoreCursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, targetColumn);
     m_keywordEditor->setTextCursor(restoreCursor);
     m_updatingFromPicker = false;
+    if (m_keywordEditor) {
+        emit keywordsChanged(m_keywordEditor->toPlainText());
+    }
 }
 
 QString SettingsDialog::currentLineText() const
