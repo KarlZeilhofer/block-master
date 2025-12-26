@@ -536,17 +536,6 @@ QWidget *MainWindow::createCalendarView()
 
     layout->addWidget(m_calendarView, 1);
 
-    auto *infoLayout = new QHBoxLayout();
-    infoLayout->setContentsMargins(8, 4, 8, 4);
-    infoLayout->addStretch();
-    auto *infoButton = new QToolButton(panel);
-    infoButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxInformation));
-    infoButton->setToolTip(tr("Details anzeigen (Space)"));
-    infoButton->setAutoRaise(true);
-    connect(infoButton, &QToolButton::clicked, this, &MainWindow::togglePreviewPanel);
-    infoLayout->addWidget(infoButton);
-    layout->addLayout(infoLayout);
-
     layout->addWidget(m_previewPanel);
     layout->addWidget(m_eventEditor);
     return panel;
