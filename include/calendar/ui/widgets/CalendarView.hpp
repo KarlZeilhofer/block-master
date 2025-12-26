@@ -26,6 +26,7 @@ public:
     ~CalendarView() override;
 
     void setDateRange(const QDate &start, int days);
+    void setDayOffset(double offsetDays);
     void setEvents(std::vector<data::CalendarEvent> events);
     void zoomTime(double factor);
     double hourHeight() const { return m_hourHeight; }
@@ -36,6 +37,7 @@ public:
 signals:
     void dayZoomRequested(bool zoomIn);
     void dayScrollRequested(int dayDelta);
+    void fractionalDayScrollRequested(double dayDelta);
 
     void eventActivated(const data::CalendarEvent &event);
     void inlineEditRequested(const data::CalendarEvent &event);
@@ -93,6 +95,10 @@ private:
     void recalculateDayWidth();
     void maybeAutoScrollHorizontally(const QPoint &pos);
     bool handleWheelInteraction(QWheelEvent *event);
+    double horizontalWheelStepDays() const;
+    double dayColumnLeft(int dayIndex) const;
+    double contentRightEdge() const;
+    double mapToDayPosition(double x) const;
     void beginInternalEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes);
     void updateInternalEventDrag(const QPointF &scenePos);
     void finalizeInternalEventDrag(const QPointF &scenePos);
@@ -144,6 +150,7 @@ private:
     int m_dayCount = 5;
     double m_hourHeight = 60.0;
     double m_dayWidth = 200.0;
+    double m_dayOffset = 0.0;
     double m_headerHeight = 40.0;
     double m_timeAxisWidth = 70.0;
     std::vector<data::CalendarEvent> m_events;
@@ -170,7 +177,6 @@ private:
     QString m_externalPlacementLabel;
     QUuid m_hoverTopHandleId;
     QUuid m_hoverBottomHandleId;
-    double m_horizontalScrollRemainder = 0.0;
     bool m_dragInteractionActive = false;
     bool m_forwardingKeyEvent = false;
     QElapsedTimer m_autoScrollTimer;

@@ -10,8 +10,8 @@
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication::setOrganizationName(QStringLiteral("Zellhoff"));
-    QCoreApplication::setOrganizationDomain(QStringLiteral("zellhoff.at"));
+    QCoreApplication::setOrganizationName(QStringLiteral("KarlZeilhofer"));
+    QCoreApplication::setOrganizationDomain(QStringLiteral("zeilhofer.co.at"));
     QCoreApplication::setApplicationName(QStringLiteral("Block Master"));
 
     QApplication app(argc, argv);

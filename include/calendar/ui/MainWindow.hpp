@@ -71,6 +71,7 @@ private:
     void zoomCalendarVertically(bool in);
     void setVisibleDayCount(int days);
     void scrollVisibleDays(int deltaDays);
+    void scrollVisibleDaysFractional(double deltaDays);
     void handleEventSelected(const data::CalendarEvent &event);
     void saveEventEdits(const data::CalendarEvent &event);
     void saveTodoEdits(const data::TodoItem &todo);
@@ -126,6 +127,7 @@ private:
     bool m_previewVisible = false;
     QDate m_currentDate;
     int m_visibleDays = 9;
+    double m_dayOffset = 0.0;
     double m_savedHourHeight = 60.0;
     int m_savedVerticalScroll = 0;
     std::optional<data::CalendarEvent> m_selectedEvent;

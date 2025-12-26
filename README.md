@@ -10,7 +10,7 @@ Block Master ist eine auf Qt 5 basierende Desktop-Anwendung für Linux, die Ta
 - **Überlappungen & Layout**: Überlappende Events werden intelligent verteilt, Hover hebt einzelne Termine hervor, Event-Karten haben 8 px-Ecken und schneiden beim Überschreiten von 0 Uhr sauber ab. Uhrzeiten stehen am linken Rand zweizeilig.
 - **Suche & Clipboards**: Suchfeld beeinflusst auch Events (Treffer bleiben farbig, andere werden grau). Spezieller „Plaintext-Einfügen“-Modus erzeugt TODOs zeilenweise, inklusive Dauererkennung und Orte. `Strg+C`/`Strg+V`/`Strg+D` arbeiten konsistent und platzieren neue Elemente zentriert.
 - **Undo/Redo & Persistenz**: Undo-Stack für riskante Aktionen (z. B. Plaintext-Paste). Daten werden in `default.ics` gespeichert; Dummy-Daten entfallen.
-- **Branding & Oberfläche**: Fenster- und App-Icon stammen aus `resources/block-master-icon.*`, das Hauptfenster zeigt `Block Master 25.0.0` als Titel. Einstellungen liegen unter Organisation „Zellhoff“, Domain `zellhoff.at`.
+- **Branding & Oberfläche**: Fenster- und App-Icon stammen aus `resources/block-master-icon.*`, das Hauptfenster zeigt `Block Master 25.0.0` als Titel. Einstellungen liegen unter Organisation „KarlZeilhofer“, Domain `zeilhofer.co.at`.
 
 ## Tastaturbedienung (Auszug)
 - Navigation: `←/→` (wochenweise), `↑/↓` (30 min Schritte), `T` (Heute), `Strg++/-` horizontaler Zoom, `Strg+Shift++/-` vertikaler Zoom.

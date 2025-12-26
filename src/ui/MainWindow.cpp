@@ -282,6 +282,8 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
     m_currentDate = alignToWeekStart(QDate::currentDate());
+    m_dayOffset = 0.0;
+    m_dayOffset = 0.0;
     restoreCalendarState();
     setupUi();
     refreshTodos();
@@ -505,6 +507,7 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::externalPlacementConfirmed, this, &MainWindow::handlePlacementConfirmed);
     connect(m_calendarView, &CalendarView::dayZoomRequested, this, &MainWindow::zoomCalendarHorizontally);
     connect(m_calendarView, &CalendarView::dayScrollRequested, this, &MainWindow::scrollVisibleDays);
+    connect(m_calendarView, &CalendarView::fractionalDayScrollRequested, this, &MainWindow::scrollVisibleDaysFractional);
     connect(m_calendarView, &CalendarView::eventDroppedToTodo, this, &MainWindow::handleEventDroppedToTodo);
     connect(m_calendarView, &CalendarView::todoHoverPreviewRequested, this, &MainWindow::handleTodoHoverPreview);
     connect(m_calendarView, &CalendarView::todoHoverPreviewCleared, this, &MainWindow::handleTodoHoverCleared);
@@ -677,6 +680,7 @@ void MainWindow::saveCalendarState() const
 {
     QSettings settings;
     settings.setValue(QStringLiteral("calendar/startDate"), m_currentDate);
+    settings.setValue(QStringLiteral("calendar/dayOffset"), m_dayOffset);
     settings.setValue(QStringLiteral("calendar/visibleDays"), m_visibleDays);
     const double storedHeight = m_calendarView ? m_calendarView->hourHeight() : m_savedHourHeight;
     settings.setValue(QStringLiteral("calendar/hourHeight"), storedHeight);
@@ -689,8 +693,19 @@ void MainWindow::restoreCalendarState()
 {
     QSettings settings;
     const QDate storedStart = settings.value(QStringLiteral("calendar/startDate")).toDate();
+    const bool hasOffsetValue = settings.contains(QStringLiteral("calendar/dayOffset"));
     if (storedStart.isValid()) {
-        m_currentDate = alignToWeekStart(storedStart);
+        if (hasOffsetValue) {
+            m_currentDate = storedStart;
+        } else {
+            m_currentDate = alignToWeekStart(storedStart);
+        }
+    }
+    const double storedOffset = settings.value(QStringLiteral("calendar/dayOffset"), 0.0).toDouble();
+    if (hasOffsetValue) {
+        m_dayOffset = qBound(0.0, storedOffset, 0.999999);
+    } else {
+        m_dayOffset = 0.0;
     }
     const int storedDays = settings.value(QStringLiteral("calendar/visibleDays"), m_visibleDays).toInt();
     m_visibleDays = qBound(1, storedDays, 31);
@@ -786,6 +801,7 @@ void MainWindow::clearAllTodoSelections()
 void MainWindow::goToday()
 {
     m_currentDate = alignToWeekStart(QDate::currentDate());
+    m_dayOffset = 0.0;
     updateCalendarRange();
     refreshCalendar();
     statusBar()->showMessage(tr("Heute ausgewählt: %1").arg(m_currentDate.toString(Qt::ISODate)), 2000);
@@ -799,6 +815,7 @@ void MainWindow::navigateForward()
     } else {
         m_currentDate = m_currentDate.addDays(7);
     }
+    m_dayOffset = 0.0;
     updateCalendarRange();
     refreshCalendar();
     statusBar()->showMessage(tr("Weiter: %1").arg(m_currentDate.toString(Qt::ISODate)), 1500);
@@ -812,6 +829,7 @@ void MainWindow::navigateBackward()
     } else {
         m_currentDate = m_currentDate.addDays(-7);
     }
+    m_dayOffset = 0.0;
     updateCalendarRange();
     refreshCalendar();
     statusBar()->showMessage(tr("Zurück: %1").arg(m_currentDate.toString(Qt::ISODate)), 1500);
@@ -984,6 +1002,7 @@ void MainWindow::updateCalendarRange()
     const QDate end = m_currentDate.addDays(m_visibleDays - 1);
     m_scheduleViewModel->setRange(m_currentDate, end);
     m_calendarView->setDateRange(m_currentDate, m_visibleDays);
+    m_calendarView->setDayOffset(m_dayOffset);
     if (m_viewInfoLabel) {
         m_viewInfoLabel->setText(tr("%1 - %2 (%3 Tage)")
                                      .arg(m_currentDate.toString(Qt::ISODate),
@@ -1012,12 +1031,35 @@ void MainWindow::scrollVisibleDays(int deltaDays)
     if (deltaDays == 0) {
         return;
     }
+    m_dayOffset = 0.0;
     m_currentDate = m_currentDate.addDays(deltaDays);
     updateCalendarRange();
     refreshCalendar();
     statusBar()->showMessage(tr("Ansicht verschoben: %1")
                                  .arg(m_currentDate.toString(Qt::ISODate)),
                              1200);
+}
+
+void MainWindow::scrollVisibleDaysFractional(double deltaDays)
+{
+    if (qFuzzyIsNull(deltaDays)) {
+        return;
+    }
+    m_dayOffset += deltaDays;
+    while (m_dayOffset >= 1.0) {
+        m_currentDate = m_currentDate.addDays(1);
+        m_dayOffset -= 1.0;
+    }
+    while (m_dayOffset < 0.0) {
+        m_currentDate = m_currentDate.addDays(-1);
+        m_dayOffset += 1.0;
+    }
+    m_dayOffset = qBound(0.0, m_dayOffset, 0.999999);
+    updateCalendarRange();
+    refreshCalendar();
+    QDateTime viewStart(m_currentDate, QTime(0, 0));
+    viewStart = viewStart.addSecs(static_cast<qint64>(m_dayOffset * 24.0 * 60.0 * 60.0));
+    statusBar()->showMessage(tr("Ansicht verschoben: %1").arg(viewStart.toString(Qt::ISODate)), 800);
 }
 
 void MainWindow::setVisibleDayCount(int days)

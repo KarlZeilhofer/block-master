@@ -83,7 +83,7 @@ Unterbrich die horizontale Gitterlinie links vom ersten Tag (lass einen Stummel 
 
 
 Merke dir die letzte Ansicht (erster Tag, Zoomlevel) in QSettings. 
-Oranization: "Zellhoff", Domain: "zellhoff.at", Appname: "Block Master"
+Oranization: "KarlZeilhofer", Domain: "zeilhofer.co.at", Appname: "Block Master"
 
 Die App soll umbenann werden von "Task Master" auf "Block Master"
 
