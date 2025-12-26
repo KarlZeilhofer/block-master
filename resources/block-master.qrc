@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="app-icon.svg">block-master-icon.svg</file>
+        <file alias="app-icon.png">block-master-icon.png</file>
+    </qresource>
+</RCC>

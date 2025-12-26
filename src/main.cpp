@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QCoreApplication>
+#include <QIcon>
 #include <QSettings>
 #include <QString>
 
@@ -14,9 +15,12 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName(QStringLiteral("Block Master"));
 
     QApplication app(argc, argv);
+    const QIcon appIcon(QStringLiteral(":/icons/app-icon.svg"));
+    app.setWindowIcon(appIcon);
 
     calendar::ui::MainWindow mainWindow;
     mainWindow.setWindowTitle(QObject::tr("Block Master %1").arg(QString::fromLatin1(kBlockMasterVersion)));
+    mainWindow.setWindowIcon(appIcon);
     mainWindow.showMaximized();
 
     return app.exec();

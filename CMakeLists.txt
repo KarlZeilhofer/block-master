@@ -57,6 +57,7 @@ target_link_libraries(calendar_ui PUBLIC Qt5::Widgets calendar_core calendar_dat
 
 add_executable(block-master
     src/main.cpp
+    resources/block-master.qrc
 )
 target_include_directories(block-master PRIVATE include)
 target_link_libraries(block-master PRIVATE calendar_ui calendar_core calendar_data)
