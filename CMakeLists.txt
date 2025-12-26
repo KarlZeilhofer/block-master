@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(BlockMaster VERSION 0.1.0 LANGUAGES CXX)
+project(BlockMaster VERSION 25.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -55,26 +55,10 @@ add_library(calendar_ui STATIC
 target_include_directories(calendar_ui PUBLIC include)
 target_link_libraries(calendar_ui PUBLIC Qt5::Widgets calendar_core calendar_data)
 
-set(BUILD_NUMBER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/build_number.txt")
-set(BUILD_NUMBER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/build_number.hpp")
-set(BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/update_build_number.sh")
-
-add_custom_command(
-    OUTPUT ${BUILD_NUMBER_HEADER}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated
-    COMMAND ${BUILD_NUMBER_SCRIPT} ${BUILD_NUMBER_FILE} ${BUILD_NUMBER_HEADER}
-    DEPENDS ${BUILD_NUMBER_FILE} ${BUILD_NUMBER_SCRIPT}
-    COMMENT "Updating build number"
-)
-
-add_custom_target(build_number ALL DEPENDS ${BUILD_NUMBER_HEADER})
-
 add_executable(block-master
     src/main.cpp
-    ${BUILD_NUMBER_HEADER}
 )
-add_dependencies(block-master build_number)
-target_include_directories(block-master PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
+target_include_directories(block-master PRIVATE include)
 target_link_libraries(block-master PRIVATE calendar_ui calendar_core calendar_data)
 
 install(TARGETS block-master
