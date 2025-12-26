@@ -1463,17 +1463,20 @@ void MainWindow::openSettingsDialog()
 {
     if (!m_settingsDialog) {
         m_settingsDialog = std::make_unique<SettingsDialog>(this);
+        connect(m_settingsDialog.get(), &SettingsDialog::keywordsChanged, this, [this](const QString &text) {
+            if (text == m_keywordDefinitionText) {
+                return;
+            }
+            m_keywordDefinitionText = text;
+            saveKeywordDefinitions(text);
+            m_keywordColors = parseKeywordDefinitions(text);
+            applyKeywordColorsToUi();
+        });
     }
     m_settingsDialog->setKeywordText(m_keywordDefinitionText);
-    if (m_settingsDialog->exec() == QDialog::Accepted) {
-        const QString newText = m_settingsDialog->keywordText();
-        if (newText != m_keywordDefinitionText) {
-            m_keywordDefinitionText = newText;
-            saveKeywordDefinitions(newText);
-            m_keywordColors = parseKeywordDefinitions(newText);
-            applyKeywordColorsToUi();
-        }
-    }
+    m_settingsDialog->show();
+    m_settingsDialog->raise();
+    m_settingsDialog->activateWindow();
 }
 
 void MainWindow::togglePreviewPanel()

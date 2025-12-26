@@ -107,6 +107,11 @@ QWidget *SettingsDialog::createKeywordPage()
 
     connect(m_keywordEditor, &QPlainTextEdit::cursorPositionChanged, this, &SettingsDialog::updateColorFromCursor);
     connect(m_keywordEditor, &QPlainTextEdit::textChanged, this, &SettingsDialog::updateColorFromCursor);
+    connect(m_keywordEditor, &QPlainTextEdit::textChanged, this, [this]() {
+        if (m_keywordEditor) {
+            emit keywordsChanged(m_keywordEditor->toPlainText());
+        }
+    });
     connect(m_colorDialog, &QColorDialog::currentColorChanged, this, &SettingsDialog::applyColorToCurrentLine);
 
     updateColorFromCursor();
@@ -118,6 +123,7 @@ void SettingsDialog::setKeywordText(const QString &text)
     if (!m_keywordEditor) {
         return;
     }
+    QSignalBlocker blocker(m_keywordEditor);
     m_keywordEditor->setPlainText(text);
     QTextCursor cursor = m_keywordEditor->textCursor();
     cursor.movePosition(QTextCursor::End);

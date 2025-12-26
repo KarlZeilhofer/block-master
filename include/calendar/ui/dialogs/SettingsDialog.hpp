@@ -21,6 +21,9 @@ public:
     void setKeywordText(const QString &text);
     QString keywordText() const;
 
+signals:
+    void keywordsChanged(const QString &text);
+
 private:
     void setupUi();
     QWidget *createCalendarPage();
