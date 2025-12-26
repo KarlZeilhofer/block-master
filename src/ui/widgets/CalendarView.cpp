@@ -185,6 +185,7 @@ void CalendarView::setDateRange(const QDate &start, int days)
     recalculateDayWidth();
     viewport()->update();
     updateScrollBars();
+    refreshActiveDragPreview();
 }
 
 void CalendarView::setDayOffset(double offsetDays)
@@ -202,6 +203,7 @@ void CalendarView::setDayOffset(double offsetDays)
     m_dayOffset = normalized;
     invalidateLayout();
     viewport()->update();
+    refreshActiveDragPreview();
 }
 
 void CalendarView::setEvents(std::vector<data::CalendarEvent> events)
@@ -732,7 +734,6 @@ void CalendarView::paintEvent(QPaintEvent *event)
     }
 
     painter.restore();
-    paintTodayLine();
 
     if (!highlightLines.empty()) {
         for (const auto &[lineX, color] : highlightLines) {
@@ -741,6 +742,8 @@ void CalendarView::paintEvent(QPaintEvent *event)
             painter.drawLine(QPointF(lineX, 0), QPointF(lineX, viewport()->height()));
         }
     }
+
+    paintTodayLine();
 }
 
 void CalendarView::resizeEvent(QResizeEvent *event)
@@ -822,6 +825,7 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
         return;
     }
     if (event->button() == Qt::LeftButton) {
+        storePointerPosition(event->pos());
         m_pressPos = event->pos();
         resetDragCandidate();
         cancelNewEventDrag();
@@ -920,6 +924,7 @@ void CalendarView::mousePressEvent(QMouseEvent *event)
 
 void CalendarView::mouseMoveEvent(QMouseEvent *event)
 {
+    storePointerPosition(event->pos());
     if (m_dragMode != DragMode::None) {
         const QPointF scenePos = QPointF(event->pos())
             + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
@@ -981,8 +986,10 @@ void CalendarView::mouseMoveEvent(QMouseEvent *event)
 
 void CalendarView::mouseReleaseEvent(QMouseEvent *event)
 {
+    storePointerPosition(event->pos());
     if (m_dragMode != DragMode::None && event->button() == Qt::LeftButton) {
         endResize();
+        clearPointerPosition();
         event->accept();
         return;
     }
@@ -990,6 +997,7 @@ void CalendarView::mouseReleaseEvent(QMouseEvent *event)
         const QPointF scenePos = QPointF(event->pos())
             + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
         finalizeInternalEventDrag(scenePos);
+        clearPointerPosition();
         event->accept();
         return;
     }
@@ -998,6 +1006,7 @@ void CalendarView::mouseReleaseEvent(QMouseEvent *event)
             + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
         updateNewEventDrag(scenePos);
         finalizeNewEventDrag();
+        clearPointerPosition();
         event->accept();
         return;
     }
@@ -1005,6 +1014,7 @@ void CalendarView::mouseReleaseEvent(QMouseEvent *event)
         cancelNewEventDrag();
     }
     resetDragCandidate();
+    clearPointerPosition();
     QAbstractScrollArea::mouseReleaseEvent(event);
 }
 
@@ -1026,6 +1036,7 @@ void CalendarView::mouseDoubleClickEvent(QMouseEvent *event)
 
 void CalendarView::dragEnterEvent(QDragEnterEvent *event)
 {
+    storePointerPosition(event->pos());
     m_dragInteractionActive = true;
     m_autoScrollTimer.invalidate();
     cancelPlacementPreview();
@@ -1039,6 +1050,7 @@ void CalendarView::dragEnterEvent(QDragEnterEvent *event)
 
 void CalendarView::dragMoveEvent(QDragMoveEvent *event)
 {
+    storePointerPosition(event->pos());
     maybeAutoScrollHorizontally(event->pos());
     const auto *mime = event->mimeData();
     const QPointF scenePos = QPointF(event->pos())
@@ -1099,6 +1111,7 @@ void CalendarView::dragMoveEvent(QDragMoveEvent *event)
 
 void CalendarView::dropEvent(QDropEvent *event)
 {
+    storePointerPosition(event->pos());
     m_dragInteractionActive = false;
     m_autoScrollTimer.invalidate();
     const auto *mime = event->mimeData();
@@ -1125,6 +1138,7 @@ void CalendarView::dropEvent(QDropEvent *event)
         temporarilyDisableNewEventCreation();
         event->setDropAction(copy ? Qt::CopyAction : Qt::MoveAction);
         event->accept();
+        clearPointerPosition();
         return;
     }
 
@@ -1148,16 +1162,19 @@ void CalendarView::dropEvent(QDropEvent *event)
         temporarilyDisableNewEventCreation();
         event->setDropAction(copy ? Qt::CopyAction : Qt::MoveAction);
         event->accept();
+        clearPointerPosition();
         return;
     }
 
     event->ignore();
+    clearPointerPosition();
 }
 
 void CalendarView::dragLeaveEvent(QDragLeaveEvent *event)
 {
     m_autoScrollTimer.invalidate();
     m_dragInteractionActive = false;
+    clearPointerPosition();
     Q_UNUSED(event);
     clearDropPreview();
 }
@@ -1169,6 +1186,7 @@ void CalendarView::leaveEvent(QEvent *event)
         m_hoveredEventId = QUuid();
         viewport()->update();
     }
+    clearPointerPosition();
 }
 
 bool CalendarView::eventFilter(QObject *watched, QEvent *event)
@@ -2183,6 +2201,52 @@ bool CalendarView::hasTrailingPartialDay() const
 int CalendarView::daySlotCount() const
 {
     return m_dayCount + (hasTrailingPartialDay() ? 1 : 0);
+}
+
+void CalendarView::scrollContentsBy(int dx, int dy)
+{
+    QAbstractScrollArea::scrollContentsBy(dx, dy);
+    refreshActiveDragPreview();
+}
+
+void CalendarView::refreshActiveDragPreview()
+{
+    if (!m_lastPointerPosValid) {
+        return;
+    }
+    const QPointF scenePos = QPointF(m_lastPointerPos)
+        + QPointF(horizontalScrollBar()->value(), verticalScrollBar()->value());
+    if (m_dragMode != DragMode::None) {
+        updateResize(scenePos);
+        return;
+    }
+    if (m_internalDragActive) {
+        updateInternalEventDrag(scenePos);
+        return;
+    }
+    if (m_newEventDragActive) {
+        updateNewEventDrag(scenePos);
+        return;
+    }
+    if (m_dragInteractionActive && m_showDropPreview) {
+        if (auto dateTimeOpt = dateTimeAtScene(scenePos)) {
+            const int durationMinutes = qMax(1,
+                                             static_cast<int>(m_dropPreviewEvent.start.secsTo(m_dropPreviewEvent.end)
+                                                              / 60));
+            updateDropPreview(snapDateTime(dateTimeOpt.value()), durationMinutes, m_dropPreviewText);
+        }
+    }
+}
+
+void CalendarView::storePointerPosition(const QPoint &pos)
+{
+    m_lastPointerPos = pos;
+    m_lastPointerPosValid = true;
+}
+
+void CalendarView::clearPointerPosition()
+{
+    m_lastPointerPosValid = false;
 }
 
 QString CalendarView::eventTooltipText(const data::CalendarEvent &event) const

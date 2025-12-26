@@ -16,15 +16,14 @@ Es braucht in den Einstellungen eine Möglichkeit, Schlüsselwörter definieren 
 Die hier beschriebene erste Einstellmöglichkeit heißt "Schlüsselwörter". 
 
 
-Wird bei einem Drag-Event nur gescrollt (horizontal oder vertikal) wird das Ghost Objekt nicht aktualisiert. 
-Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position verändert, wird das Objket korrekt gerendert. Aber beim Verschieben über Tage hinweg, wo man scrollt, bewegt sich nicht zwangsläufig die Maus. 
-
 
 WIP ################################
 
 
-
 DONE ###############################
+
+Wird bei einem Drag-Event nur gescrollt (horizontal oder vertikal) wird das Ghost Objekt nicht aktualisiert. 
+Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position verändert, wird das Objket korrekt gerendert. Aber beim Verschieben über Tage hinweg, wo man scrollt, bewegt sich nicht zwangsläufig die Maus. 
 
 Entfernen von TODOs per Delete-Taste
 

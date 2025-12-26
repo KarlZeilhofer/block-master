@@ -75,6 +75,7 @@ protected:
     void dragLeaveEvent(QDragLeaveEvent *event) override;
     void leaveEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void scrollContentsBy(int dx, int dy) override;
 
 private:
     void updateScrollBars();
@@ -101,6 +102,9 @@ private:
     double mapToDayPosition(double x) const;
     int daySlotCount() const;
     bool hasTrailingPartialDay() const;
+    void refreshActiveDragPreview();
+    void storePointerPosition(const QPoint &pos);
+    void clearPointerPosition();
     void beginInternalEventDrag(const data::CalendarEvent &event, int pointerOffsetMinutes);
     void updateInternalEventDrag(const QPointF &scenePos);
     void finalizeInternalEventDrag(const QPointF &scenePos);
@@ -197,6 +201,8 @@ private:
     QUuid m_hoveredEventId;
     mutable bool m_layoutDirty = true;
     mutable std::map<std::pair<QUuid, int>, LayoutInfo> m_layoutCache;
+    QPoint m_lastPointerPos;
+    bool m_lastPointerPosValid = false;
 };
 
 } // namespace ui
