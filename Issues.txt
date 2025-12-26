@@ -28,6 +28,8 @@ Die hier beschriebene erste Einstellmöglichkeit heißt "Schlüsselwörter".
 Wird bei einem Drag-Event nur gescrollt (horizontal oder vertikal) wird das Ghost Objekt nicht aktualisiert. 
 Das muss behoben werden. Bisheriger Workaround: Wird die Maus Position verändert, wird das Objket korrekt gerendert. Aber beim Verschieben über Tage hinweg, wo man scrollt, bewegt sich nicht zwangsläufig die Maus. 
 
+Es gibt einen Bug, dass eine Event-Dauer verändert wird, wenn ein event ausgewählt ist, und man dann in einen leeren bereich einen drag-event startet. 
+Events dürfen die Dauer nur dann ändern, wenn einer der beiden Handles aktiv ist (top oder bottom handle). 
 
 WIP ################################
 

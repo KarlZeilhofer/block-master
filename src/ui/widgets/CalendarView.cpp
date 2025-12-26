@@ -159,6 +159,7 @@ CalendarView::CalendarView(QWidget *parent)
     setMouseTracking(true);
     setAcceptDrops(true);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     if (qApp) {
         qApp->installEventFilter(this);
     }
