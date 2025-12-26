@@ -1,15 +1,6 @@
 Issues ###########################
 
 
-Wir brauchen einen Burger-Button rechts oben in der Toolbar. Dann kommt ein Dialogfenster, wo links eine Liste von Einstellungsmöglichkeiten erscheint. Rechts davon können dann die Einstellungen gemacht werden. 
-Die Liste hat Anfangs folgende Einträge:
-* Kalender
-* Schlüsselwörter  
-
-
-
-
-
 
 
 Es braucht in den Einstellungen eine Möglichkeit, Schlüsselwörter definieren zu können, und ihnen eine RGB-Farbe zuweisen zu können. Beispiel: "Urlaub #8080ff" oder "Deadline #ff3030". Für schnelles bearbeiten soll ein Plain Text edit verwendet werden, aber rechts davon gibt es auch einen Colorchooser, der dann für die aktuelle Zeile, in der der Cursor steht, angewandt wird. Bette den Color Chooser direkt ein, und synce ihn mit der Cursorposition. 
@@ -19,6 +10,10 @@ Die hier beschriebene erste Einstellmöglichkeit heißt "Schlüsselwörter".
 
 WIP ################################
 
+Wir brauchen einen Burger-Button rechts oben in der Toolbar. Dann kommt ein Dialogfenster, wo links eine Liste von Einstellungsmöglichkeiten erscheint. Rechts davon können dann die Einstellungen gemacht werden. 
+Die Liste hat Anfangs folgende Einträge:
+* Kalender
+* Schlüsselwörter  
 
 DONE ###############################
 

@@ -31,6 +31,7 @@ class CalendarView;
 class EventInlineEditor;
 class EventDetailDialog;
 class EventPreviewPanel;
+class SettingsDialog;
 class TodoListView;
 
 class MainWindow : public QMainWindow
@@ -89,6 +90,7 @@ private:
     void handleInlineEditRequest(const data::CalendarEvent &event);
     void openInlineEditor();
     void openDetailDialog();
+    void openSettingsDialog();
     void togglePreviewPanel();
     void showPreviewForSelection();
     void showSelectionHint();
@@ -124,6 +126,7 @@ private:
     EventInlineEditor *m_eventEditor = nullptr;
     EventPreviewPanel *m_previewPanel = nullptr;
     std::unique_ptr<EventDetailDialog> m_eventDetailDialog;
+    std::unique_ptr<SettingsDialog> m_settingsDialog;
     bool m_previewVisible = false;
     QLabel *m_shortcutLabel = nullptr;
     QDate m_currentDate;

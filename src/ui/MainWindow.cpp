@@ -50,6 +50,7 @@
 #include "calendar/ui/widgets/EventPreviewPanel.hpp"
 #include "calendar/ui/widgets/TodoListView.hpp"
 #include "calendar/ui/dialogs/EventDetailDialog.hpp"
+#include "calendar/ui/dialogs/SettingsDialog.hpp"
 
 namespace {
 
@@ -382,6 +383,17 @@ QToolBar *MainWindow::createNavigationBar()
     auto *zoomTimeOut = toolbar->addAction(tr("Zeit-Zoom -"));
     zoomTimeOut->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Minus));
     connect(zoomTimeOut, &QAction::triggered, this, [this]() { zoomCalendarVertically(false); });
+
+    auto *spacer = new QWidget(toolbar);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    toolbar->addWidget(spacer);
+
+    auto *settingsButton = new QToolButton(toolbar);
+    settingsButton->setText(QString::fromUtf8("\xE2\x98\xB0"));
+    settingsButton->setToolTip(tr("Einstellungen"));
+    settingsButton->setAutoRaise(true);
+    connect(settingsButton, &QToolButton::clicked, this, &MainWindow::openSettingsDialog);
+    toolbar->addWidget(settingsButton);
 
     setupShortcuts(toolbar);
     return toolbar;
@@ -1443,6 +1455,14 @@ void MainWindow::openDetailDialog()
             showPreviewForSelection();
         }
     }
+}
+
+void MainWindow::openSettingsDialog()
+{
+    if (!m_settingsDialog) {
+        m_settingsDialog = std::make_unique<SettingsDialog>(this);
+    }
+    m_settingsDialog->exec();
 }
 
 void MainWindow::togglePreviewPanel()

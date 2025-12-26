@@ -49,6 +49,8 @@ add_library(calendar_ui STATIC
     include/calendar/ui/widgets/TodoListView.hpp
     src/ui/dialogs/EventDetailDialog.cpp
     include/calendar/ui/dialogs/EventDetailDialog.hpp
+    src/ui/dialogs/SettingsDialog.cpp
+    include/calendar/ui/dialogs/SettingsDialog.hpp
     src/ui/mime/TodoMime.cpp
     include/calendar/ui/mime/TodoMime.hpp
 )
