@@ -40,6 +40,7 @@
 #include "calendar/core/UndoStack.hpp"
 #include "calendar/data/Event.hpp"
 #include "calendar/data/EventRepository.hpp"
+#include "calendar/data/FileCalendarStorage.hpp"
 #include "calendar/data/TodoRepository.hpp"
 #include "calendar/ui/models/TodoFilterProxyModel.hpp"
 #include "calendar/ui/models/TodoListModel.hpp"
@@ -533,6 +534,7 @@ QWidget *MainWindow::createCalendarView()
     connect(m_calendarView, &CalendarView::eventDroppedToTodo, this, &MainWindow::handleEventDroppedToTodo);
     connect(m_calendarView, &CalendarView::todoHoverPreviewRequested, this, &MainWindow::handleTodoHoverPreview);
     connect(m_calendarView, &CalendarView::todoHoverPreviewCleared, this, &MainWindow::handleTodoHoverCleared);
+    connect(m_calendarView, &CalendarView::icsFileDropped, this, &MainWindow::handleIcsFileDrop);
     connect(m_calendarView,
             &CalendarView::eventCreationRequested,
             this,
@@ -1742,6 +1744,65 @@ void MainWindow::performRedo()
     refreshTodos();
     refreshCalendar();
     statusBar()->showMessage(tr("Aktion wiederholt"), 2000);
+}
+
+void MainWindow::handleIcsFileDrop(const QStringList &paths)
+{
+    if (!m_appContext) {
+        return;
+    }
+    for (const QString &path : paths) {
+        const auto importedEvents = loadEventsFromIcs(path);
+        if (importedEvents.empty()) {
+            continue;
+        }
+        std::optional<data::CalendarEvent> firstCreated;
+        for (auto event : importedEvents) {
+            if (!event.start.isValid()) {
+                continue;
+            }
+            auto created = m_appContext->eventRepository().addEvent(event);
+            if (!firstCreated.has_value()) {
+                firstCreated = created;
+            }
+        }
+        if (firstCreated.has_value()) {
+            statusBar()->showMessage(tr("Termin importiert: %1").arg(firstCreated->title), 2500);
+            focusEventForEditing(*firstCreated);
+            return;
+        }
+    }
+    statusBar()->showMessage(tr("Keine Termine aus ICS importiert"), 2500);
+}
+
+std::vector<data::CalendarEvent> MainWindow::loadEventsFromIcs(const QString &filePath) const
+{
+    std::vector<data::CalendarEvent> events;
+    if (filePath.isEmpty()) {
+        return events;
+    }
+    data::FileCalendarStorage storage(filePath);
+    const auto hash = storage.events();
+    events.reserve(hash.size());
+    for (auto it = hash.constBegin(); it != hash.constEnd(); ++it) {
+        events.push_back(it.value());
+    }
+    return events;
+}
+
+void MainWindow::focusEventForEditing(const data::CalendarEvent &event)
+{
+    m_currentDate = alignToWeekStart(event.start.date());
+    m_dayOffset = 0.0;
+    updateCalendarRange();
+    refreshCalendar();
+    if (m_calendarView) {
+        const QTime time = event.start.time();
+        const double fractionalHour = static_cast<double>(time.hour()) + time.minute() / 60.0;
+        const int targetScroll = qMax(0, static_cast<int>(fractionalHour * m_calendarView->hourHeight()) - 40);
+        m_calendarView->setVerticalScrollValue(targetScroll);
+    }
+    handleInlineEditRequest(event);
 }
 
 void MainWindow::loadKeywordDefinitions()

@@ -7,6 +7,7 @@
 #include <optional>
 #include <vector>
 #include <QString>
+#include <QStringList>
 #include <QPair>
 #include <QElapsedTimer>
 #include <QHash>
@@ -55,6 +56,7 @@ signals:
     void eventCreationRequested(const QDateTime &start, const QDateTime &end);
     void todoHoverPreviewRequested(data::TodoStatus status, const data::CalendarEvent &event);
     void todoHoverPreviewCleared();
+    void icsFileDropped(const QStringList &filePaths);
 
 public:
     void beginPlacementPreview(int durationMinutes, const QString &label, const QDateTime &initialStart);

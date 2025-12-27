@@ -114,6 +114,9 @@ private:
     QString todosToPlainText(const QList<data::TodoItem> &todos) const;
     void performUndo();
     void performRedo();
+    void handleIcsFileDrop(const QStringList &paths);
+    std::vector<data::CalendarEvent> loadEventsFromIcs(const QString &filePath) const;
+    void focusEventForEditing(const data::CalendarEvent &event);
     void loadKeywordDefinitions();
     void saveKeywordDefinitions(const QString &text) const;
     QHash<QString, QColor> parseKeywordDefinitions(const QString &text) const;

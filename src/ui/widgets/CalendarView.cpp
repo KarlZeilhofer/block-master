@@ -8,6 +8,7 @@
 #include <QDragLeaveEvent>
 #include <QDropEvent>
 #include <QMimeData>
+#include <QUrl>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
@@ -165,6 +166,42 @@ const QRegularExpression &keywordRegex()
 {
     static const QRegularExpression regex(QStringLiteral("#([A-Za-z0-9_ÄÖÜäöüß]+)"));
     return regex;
+}
+
+bool hasIcsFile(const QMimeData *mimeData)
+{
+    if (!mimeData || !mimeData->hasUrls()) {
+        return false;
+    }
+    const auto urls = mimeData->urls();
+    for (const QUrl &url : urls) {
+        if (!url.isLocalFile()) {
+            continue;
+        }
+        if (url.toLocalFile().endsWith(QStringLiteral(".ics"), Qt::CaseInsensitive)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+QStringList icsFilesFromMime(const QMimeData *mimeData)
+{
+    QStringList files;
+    if (!mimeData || !mimeData->hasUrls()) {
+        return files;
+    }
+    const auto urls = mimeData->urls();
+    for (const QUrl &url : urls) {
+        if (!url.isLocalFile()) {
+            continue;
+        }
+        const QString path = url.toLocalFile();
+        if (path.endsWith(QStringLiteral(".ics"), Qt::CaseInsensitive)) {
+            files << path;
+        }
+    }
+    return files;
 }
 
 } // namespace
@@ -1079,6 +1116,10 @@ void CalendarView::dragEnterEvent(QDragEnterEvent *event)
         event->acceptProposedAction();
         return;
     }
+    if (hasIcsFile(mime)) {
+        event->acceptProposedAction();
+        return;
+    }
     event->ignore();
 }
 
@@ -1140,6 +1181,10 @@ void CalendarView::dragMoveEvent(QDragMoveEvent *event)
         event->acceptProposedAction();
         return;
     }
+    if (hasIcsFile(mime)) {
+        event->acceptProposedAction();
+        return;
+    }
     event->ignore();
 }
 
@@ -1198,6 +1243,15 @@ void CalendarView::dropEvent(QDropEvent *event)
         event->accept();
         clearPointerPosition();
         return;
+    }
+
+    if (hasIcsFile(mime)) {
+        const QStringList paths = icsFilesFromMime(mime);
+        if (!paths.isEmpty()) {
+            emit icsFileDropped(paths);
+            event->acceptProposedAction();
+            return;
+        }
     }
 
     event->ignore();
